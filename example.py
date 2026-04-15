@@ -3,6 +3,10 @@ import random
 import os
 import ephem
 import math
+import numpy as np
+import cv2
+import base64
+
 # ============================================================================
 # CHALLENGE METADATA - Required for automatic challenge registration
 # ============================================================================
@@ -16,7 +20,7 @@ challenge_metadata = {
 }
 
 # ============================================================================
-# CONFIGURATION: One-word title for file naming (change when copying to hs25, fs26, etc.)
+# CONFIGURATION: One-word title for file naming
 # ============================================================================
 one_word_title = "celestialchase"
 
@@ -41,9 +45,6 @@ challenge_hints = {
     },
 }
 
-
-
-
 # ============================================================================
 # TODO SECTION: Edit the word list below
 # ============================================================================
@@ -51,11 +52,6 @@ challenge_hints = {
 # The list should contain roughly 20 different code-related words (more is allowed).
 # Each word will be randomly selected based on the challenge code/seed.
 # Students will need to extract these words from the puzzle text.
-#
-# Example themes:
-# - Programming concepts: "variable", "function", "loop", "class"
-# - Animals: "elephant", "penguin", "dolphin", "tiger"
-# - Languages: "python", "javascript", "rust", "golang"
 #
 # ADAPT:
 # - words: Change the list items to your desired words
@@ -68,8 +64,8 @@ words = [
     "library", "import", "class", "object", "method"
 ]
 
-# Fixed observation constants all students use the same date/location
-OBS_DATE = '2025/6/21 12:00:00'  # Summer solstice
+# Fixed observation constants - all students use the same date/location
+OBS_DATE = '2025/6/21 12:00:00'  # Summer solstice, UTC
 OBS_LAT  = '47.3769'             # Zurich
 OBS_LON  = '8.5417'
 
@@ -79,7 +75,7 @@ OBS_LON  = '8.5417'
 
 def get_solution(code, lvl):
     """Generate solution for each level based on code seed"""
-    random.seed(code+lvl)
+    random.seed(code + lvl)
     return random.choice(words)
 
 def get_hash(number):
@@ -97,7 +93,7 @@ def get_hash(number):
 #     try:
 #         code_parsed = float(submitted_code)
 #         expected = float(expected_code)
-# 
+#
 #         if level == 1:
 #             # 5% tolerance
 #             return abs(code_parsed - expected) < 0.05 * expected
@@ -110,21 +106,10 @@ def get_hash(number):
 #         return False
 
 #def get_solution(final_challenge_code, lvl):
-#   if you decide to implemennt a custom checker then this function has to give the solution to a given level (based on the final_challenge_code keyword that is passed in generate_notebook_lvl), 
+#   if you decide to implement a custom checker then this function has to give the solution to a given level
 #   SO YOU NEED TO REPLACE THE GET_SOLUTION FUNCTION FROM ABOVE
-#   the output of this get_soluiton() call will then be passed on to check_solution() as the expected_code variable,
-#   so to summarize the variable in check_solution expected_code=get_solution(final_challenge_code, lvl) 
-#   in the following as an example lvl1, will always be bazinga, lvl2 will be a character depending on the final_challenge_code, and lvl 3 will be some function depending on final_challenge_code
-#    if lvl == 1:
-#        return 'bazinga'
-#    if lvl == 2:
-#        return "abcdefghijklmnopqrstuvwxyz"[final_challenge_code%26]
-#    if lvl == 3:
-#        return final_challenge_code*239472+2
-# as a fallback the solution will be the codeword (same as if you do not have a custom checker)
 #    random.seed(code+lvl)
 #    return random.choice(words)
-
 
 
 def generate_notebook_lvl(final_challenge_code=1, solution=False, nb=None, level=1):
@@ -142,345 +127,833 @@ def generate_notebook_lvl(final_challenge_code=1, solution=False, nb=None, level
         nbf.write(nb, f)
     print(f"Notebook '{filename}' generated successfully!")
 
-
 # ============================================================================
 # END: DO NOT MODIFY
 # ============================================================================
 
-# ============================================================================
-# ENCODING HELPERS
-# ============================================================================
-def get_body_altitude_shift(body_name):
-    """Returns int(altitude_degrees) % 26 for a given celestial body."""
-    obs = ephem.Observer()
-    obs.lat = OBS_LAT
-    obs.lon = OBS_LON
-    obs.date = OBS_DATE
-    body_map = {
-        'Sun':     ephem.Sun,
-        'Moon':    ephem.Moon,
-        'Mercury': ephem.Mercury,
-        'Venus':   ephem.Venus,
-        'Mars':    ephem.Mars,
-        'Jupiter': ephem.Jupiter,
-        'Saturn':  ephem.Saturn,
-    }
-    body = body_map[body_name]()
-    body.compute(obs)
-    return int(math.degrees(float(body.alt))) % 26
 
-def get_moon_phase_shift(obs_date):
-    """Returns int(moon.phase) % 26 for the given date."""
-    moon = ephem.Moon()
-    moon.compute(obs_date)
-    return int(moon.phase) % 26
+# ============================================================================
+# IMAGE + CIPHER HELPERS
+# ============================================================================
 
-def caesar_encode(word, shift):
-    """Encode a word with a single Caesar shift."""
-    result = ""
-    for c in word:
-        if c.isalpha():
-            result += chr((ord(c) - ord('a') + int(shift)) % 26 + ord('a'))
-        else:
-            result += c
-    return result
- 
-def caesar_encode_multi(word, shifts):
-    """Encode each letter with its own shift from the shifts list (cyclic)."""
-    result = ""
+def img_to_base64(img):
+    """Encode a cv2 image to a base64 PNG string for embedding in notebooks."""
+    _, buf = cv2.imencode('.png', img)
+    return base64.b64encode(buf).decode('utf-8')
+
+def make_perm(n, seed):
+    """Generate a reproducible permutation of range(n) from an integer seed."""
+    rng = random.Random(seed)
+    perm = list(range(n))
+    rng.shuffle(perm)
+    return perm
+
+def transpose_encode(word, perm):
+    """Transposition cipher: rearrange word letters according to perm.
+    encoded[perm[i]] = word[i]  =>  decode: decoded[i] = encoded[perm[i]]
+    """
+    encoded = [''] * len(word)
     for i, c in enumerate(word):
-        if c.isalpha():
-            result += chr((ord(c) - ord('a') + int(shifts[i % len(shifts)])) % 26 + ord('a'))
-        else:
-            result += c
-    return result
+        encoded[perm[i]] = c
+    return ''.join(encoded)
+
+def get_observer():
+    """Return a configured ephem.Observer for Zurich at OBS_DATE."""
+    obs = ephem.Observer()
+    obs.lat  = OBS_LAT
+    obs.lon  = OBS_LON
+    obs.date = OBS_DATE
+    return obs
+
+def az_alt_to_xy(az_deg, alt_deg, w, h):
+    """
+    Map azimuth (0-360) and altitude (-90 to 90) to image pixel coordinates.
+    az  -> x: 0 deg = left, 360 deg = right
+    alt -> y: 90 deg = top, -90 deg = bottom (flipped for image coords)
+    """
+    x = int((az_deg % 360) / 360 * w) % w
+    y = int((90 - alt_deg) / 180 * h) % h
+    return x, y
+
+def make_starfield(w, h, n_stars=300, seed=42):
+    """Dark starfield with random white/grey dots of varying brightness."""
+    rng = np.random.RandomState(seed)
+    img = np.zeros((h, w, 3), dtype=np.uint8)
+    xs = rng.randint(0, w, n_stars)
+    ys = rng.randint(0, h, n_stars)
+    brightness = rng.randint(80, 255, n_stars)
+    for x, y, b in zip(xs, ys, brightness):
+        img[y, x] = [b, b, b]
+    return img
+
+def make_nebula(w, h, seed=42):
+    """Colorful nebula background with random stars on top."""
+    rng = np.random.RandomState(seed)
+    base = rng.randint(0, 60, (h, w, 3)).astype(np.uint8)
+    for _ in range(6):
+        cx, cy = rng.randint(0, w), rng.randint(0, h)
+        r      = rng.randint(60, 150)
+        color  = rng.randint(20, 120, 3).tolist()
+        cv2.circle(base, (cx, cy), r, color, -1)
+    base = cv2.GaussianBlur(base, (61, 61), 0)
+    xs = rng.randint(0, w, 400)
+    ys = rng.randint(0, h, 400)
+    brightness = rng.randint(120, 255, 400)
+    for x, y, b in zip(xs, ys, brightness):
+        base[y, x] = [b, b, b]
+    return base
+
+
 # ============================================================================
 # TODO SECTION: Notebook Level Challenges
 # ============================================================================
 # Edit the challenge text to create the levels for your own challenge
-# 
-# Each level has to output a valid jupyter notebook, it can have multiple text sections,
-# include text, load images, make requests import libraries have multiple subtasks etc, 
-# you are free to create the challenge however you like. The template contains a very simple example with text and code cells
-# - intro_text: The text shown to students (change the joke, instructions, hints)
-# - code_message: The puzzle text containing the <word> or transformed word
+#
+# Each level outputs a valid Jupyter notebook. You can include text, images,
+# code cells, and subtasks.
 #
 # IMPORTANT: the correct code word is determined by calling "get_solution(code)"
 #
 # ADAPT the following functions:
 # - generate_notebook_lvl1(): Customize level 1
-# - generate_notebook_lvl2(): Customize level 2 
-# - generate_notebook_lvl3(): Customize level 3 
+# - generate_notebook_lvl2(): Customize level 2
+# - generate_notebook_lvl3(): Customize level 3
 # ============================================================================
 
 
 def generate_notebook_lvl1(final_challenge_code=1, final_solution_flag=False):
-    # TODO: Customize the challenge text, jokes, and instructions for level 1
-    # You can modify:
-    # But keep the <word> placeholder so students extract the word from the word list
-    # do not modify the solution extraction logic below -- of course we encourage you to modify the content of your challenge dynamically 
-    # according to the chosen final code word
- 
+    # TODO: Customize the challenge text and instructions for level 1
+    # do not modify the solution extraction logic below
+
     # --------------------------------
     # Do not modify the solution token extraction logic
     final_solution_word = get_solution(final_challenge_code, 1)
     # --------------------------------
- 
-    """Level 1: Moon Phase Caesar - decode word using moon illumination as shift"""
+
+    """
+    Level 1: The Teal Beacon
+    - 400x400 starfield image with Venus marked as a cyan pixel at its az/alt position
+    - key = int(venus_az_deg) * int(venus_alt_deg) + int(venus_phase)
+    - Word encoded with transposition cipher keyed by this value
+    - Students: find cyan pixel with cv2, compute Venus phase with ephem, build key, decode
+    - Cannot brute force: need exact pixel coords AND venus.phase combined
+    """
+
     nb = nbf.v4.new_notebook()
- 
+
     # Header
-    title_cell = nbf.v4.new_markdown_cell("## CASH Notebook")
-    nb.cells.append(title_cell)
- 
-    # Challenge title
-    challenge_cell = nbf.v4.new_markdown_cell("## Lunar Calibration")
- 
-    # Offset date by challenge code in weekly steps - moon phase changes ~12% per week
-    base_date = ephem.Date('2025/1/1 12:00:00')
-    obs_date = str(ephem.Date(base_date + final_challenge_code * 7))
+    nb.cells.append(nbf.v4.new_markdown_cell("## CASH Notebook"))
+    nb.cells.append(nbf.v4.new_markdown_cell("## Celestial Chase - LVL 1: The Teal Beacon"))
 
-    # Get the solution word encoded with moon phase shift for this student's date
-    shift = get_moon_phase_shift(obs_date)
-    encoded_word = caesar_encode(final_solution_word, shift)
- 
-    # Intro text with joke and hint
-    intro_text = f"""You've just woken up from cryo-sleep. No memory. No crew. Just you, a dying sun, and a faint signal pulsing in rhythm with the Moon.
-Decode the pulse.
-It's the only clue you have.
- 
+    # --- Astronomy computation ---
+    obs = get_observer()
+    venus = ephem.Venus()
+    venus.compute(obs)
+    az_deg  = int(math.degrees(float(venus.az)))
+    alt_deg = int(math.degrees(float(venus.alt)))
+    phase   = int(venus.phase)
+
+    # Key combines az, alt, and phase - needs both cv2 (pixel) and ephem (phase)
+    key  = az_deg * alt_deg + phase
+    perm = make_perm(len(final_solution_word), key)
+    encoded_word = transpose_encode(final_solution_word, perm)
+
+    # --- Image generation - unique per user ---
+    W, H = 400, 400
+    rng = np.random.RandomState(final_challenge_code * 17 + 3)
+
+    # Unique background: vary star count, brightness, subtle tint per user
+    n_bg_stars = rng.randint(200, 500)
+    tint       = rng.randint(0, 25, 3).tolist()
+    img        = np.zeros((H, W, 3), dtype=np.uint8)
+    xs         = rng.randint(0, W, n_bg_stars)
+    ys         = rng.randint(0, H, n_bg_stars)
+    bvals      = rng.randint(60, 230, n_bg_stars)
+    for x, y, b in zip(xs, ys, bvals):
+        img[y, x] = [max(0, min(255, b + tint[i])) for i in range(3)]
+
+    # Decoy near-cyan pixels to prevent trivial single-pixel search
+    # Real Venus: R=0 exactly. Decoys: R in 1-30 (visually similar, not exact)
+    n_decoys = rng.randint(4, 9)
+    for _ in range(n_decoys):
+        dpx = rng.randint(5, W-5)
+        dpy = rng.randint(5, H-5)
+        fake_r = int(rng.randint(1, 30))
+        img[dpy, dpx] = [255, 255, fake_r]
+
+    # Real Venus: bright cyan cross, R=0 exactly
+    vx, vy = az_alt_to_xy(az_deg, alt_deg, W, H)
+    for dx, dy in [(-1,0),(1,0),(0,-1),(0,1),(0,0)]:
+        nx, ny = vx+dx, vy+dy
+        if 0 <= nx < W and 0 <= ny < H:
+            img[ny, nx] = [255, 255, 0]  # BGR cyan - R must be exactly 0
+
+    img_b64 = img_to_base64(img)
+
+    # --- Notebook cells ---
+    intro_text = """You've just woken up from cryo-sleep. No memory. No crew. Just you, a dying sun, and a faint signal pulsing from the sky.
+
+One star glows different from the rest. Not white. Not grey. **Teal.**
+
+Find it. Its position holds part of the key. But position alone is not enough - you must also know how much of its face is lit by the sun.
+
 ---
- 
-The Moon lights up the endless black,
-Find how much of her face looks back.
-On the solstice at times, UTC,
-Take that percent, mod twenty-six is your key.
-Shift each letter back by that amount,
-And the signal from deep space will finally count.
- 
-**Encoded signal:** `{encoded_word}`
-"""
- 
-    # Code cell with the challenge setup
-    code_message = f"""import ephem
 
-encoded = "{encoded_word}"
-obs_date = "{obs_date}"
-"""
- 
-    # Template for student solution
-    complete_code = """# TODO: compute the Moon's phase using the ephem library
+**The encoded signal:** `{encoded}`
 
- 
-# TODO: find the shift
-shift = ...
- 
-# TODO: solve the cypher
-def solve(...):
-    
-answer = solve(...)
+**Your task:**
+1. Display the image and find the **cyan pixel** - it is the only pixel where `B == 255` and `G == 255` and `R == 0`
+2. Read its `(x, y)` coordinates
+3. Use `ephem` to compute **Venus's phase** (`int(venus.phase)`) on `{date}` UTC from Zurich (lat=`{lat}`, lon=`{lon}`)
+4. Build the key: `key = x * y + int(venus.phase)`
+5. Build the permutation: `random.Random(key).shuffle(list(range(len(encoded))))`
+6. Reverse the transposition to decode: `decoded[i] = encoded[perm[i]]`
+""".format(encoded=encoded_word, date=OBS_DATE, lat=OBS_LAT, lon=OBS_LON)
+
+    nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
+
+    # Image loader cell - base64 embedded so students need no external files
+    image_cell = f"""import base64, cv2, numpy as np
+from IPython.display import display, Image as IPImage
+
+# Starfield image embedded directly in this notebook
+img_b64 = "{img_b64}"
+
+img_bytes = base64.b64decode(img_b64)
+img_arr   = np.frombuffer(img_bytes, dtype=np.uint8)
+img       = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+
+cv2.imwrite('starfield.png', img)
+display(IPImage('starfield.png'))
+print("Image shape:", img.shape)
+"""
+    nb.cells.append(nbf.v4.new_code_cell(image_cell))
+
+    # Student solution cell
+    student_code = f"""import ephem, random
+
+encoded  = "{encoded_word}"
+obs_date = "{OBS_DATE}"
+obs_lat  = "{OBS_LAT}"
+obs_lon  = "{OBS_LON}"
+
+# TODO Step 1: Find the cyan pixel (B=255, G=255, R=0) in img
+# Hint: use np.where or a loop
+pixel_x, pixel_y = 0, 0  # replace with actual coordinates
+
+# TODO Step 2: Compute Venus phase with ephem
+obs = ephem.Observer()
+obs.lat  = obs_lat
+obs.lon  = obs_lon
+obs.date = obs_date
+venus = ephem.Venus()
+venus.compute(obs)
+phase = 0  # replace: int(venus.phase)
+
+# TODO Step 3: Build key and permutation
+key  = pixel_x * pixel_y + phase
+perm = list(range(len(encoded)))
+random.Random(key).shuffle(perm)
+
+# TODO Step 4: Reverse the transposition
+# Hint: if encoded[perm[i]] = original[i], then decoded[i] = encoded[perm[i]]? Think carefully.
+def transpose_decode(encoded, perm):
+    pass  # implement this
+
+answer = transpose_decode(encoded, perm)
 print(answer)
 """
- 
+    nb.cells.append(nbf.v4.new_code_cell(student_code))
+
     # Solution code
-    solution_code = f"""import ephem
+    solution_code = f"""import ephem, random, cv2, numpy as np, base64
+from IPython.display import display, Image as IPImage
 
-encoded = "{encoded_word}"
-obs_date = "{obs_date}"
+encoded  = "{encoded_word}"
+img_b64  = "{img_b64}"
+obs_date = "{OBS_DATE}"
+obs_lat  = "{OBS_LAT}"
+obs_lon  = "{OBS_LON}"
 
-moon = ephem.Moon()
-moon.compute(obs_date)
-shift = int(moon.phase) % 26
- 
-def caesar_decode(word, shift):
-    result = ""
-    for c in word:
-        if c.isalpha():
-            result += chr((ord(c) - ord('a') - shift) % 26 + ord('a'))
-        else:
-            result += c
-    return result
- 
-answer = caesar_decode(encoded, shift)
+img_bytes = base64.b64decode(img_b64)
+img_arr   = np.frombuffer(img_bytes, dtype=np.uint8)
+img       = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+
+# Find cyan pixel: B=255, G=255, R=0
+mask = (img[:,:,0] == 255) & (img[:,:,1] == 255) & (img[:,:,2] == 0)
+ys, xs = np.where(mask)
+pixel_x = int(np.median(xs))
+pixel_y = int(np.median(ys))
+
+obs = ephem.Observer()
+obs.lat  = obs_lat
+obs.lon  = obs_lon
+obs.date = obs_date
+venus = ephem.Venus()
+venus.compute(obs)
+phase = int(venus.phase)
+
+key  = pixel_x * pixel_y + phase
+perm = list(range(len(encoded)))
+random.Random(key).shuffle(perm)
+
+def transpose_decode(encoded, perm):
+    decoded = [''] * len(encoded)
+    for i, c in enumerate(encoded):
+        decoded[perm[i]] = c
+    return ''.join(decoded)
+
+answer = transpose_decode(encoded, perm)
 print(answer)  # {final_solution_word}
 """
- 
-    # TODO: 
-    # Make sure to build up the notebook cells, and if the final_solution_flag tag is set, include the solution code cell (will be for the master solution)
-    nb.cells.append(challenge_cell)
-    nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
-    nb.cells.append(nbf.v4.new_code_cell(code_message))
-    nb.cells.append(nbf.v4.new_code_cell(complete_code))
- 
+
+    # TODO:
+    # Make sure to build up the notebook cells, and if the final_solution_flag tag is set, include the solution code cell
     if final_solution_flag:
         nb.cells.append(nbf.v4.new_code_cell(solution_code))
- 
+
     # note: the notebook must be stored in the variable nb for the function call below
- 
- 
- 
+
     # -----------------------------------------------------------------
     # do not modify the following line for generating the notebook file
- 
     generate_notebook_lvl(final_challenge_code, final_solution_flag, nb, level=1)
- 
     # -----------------------------------------------------------------
- 
- 
+
 
 def generate_notebook_lvl2(final_challenge_code=1, final_solution_flag=False):
-    # TODO: Customize the challenge text, jokes, and instructions for level 2
-    # You can modify:
-    # But keep the <word> placeholder so students extract the word from the word list
-    # do not modify the solution extraction logic below -- of course we encourage you to modify the content of your challenge dynamically
-    # according to the chosen final code word
+    # TODO: Customize the challenge text and instructions for level 2
+    # do not modify the solution extraction logic below
 
     # --------------------------------
     # Do not modify the solution token extraction logic
     final_solution_word = get_solution(final_challenge_code, 2)
     # --------------------------------
 
-    """Level 2: String reversal"""
+    """
+    Level 2: Ghost Stars
+    - 600x600 nebula image
+    - 4 planets (Mars, Jupiter, Saturn, Mercury) placed as near-white 3x3 pixels at their sky positions
+    - Each pixel blue channel = int(planet.earth_distance * 1000) % 256
+    - seed = sum(blue_channel[i] + int(alt_deg[i]) for each planet)
+    - Word encoded with transposition cipher keyed by this seed
+    - Students: find 4 special pixels with cv2, read blue channels, compute altitudes with ephem, combine, decode
+    - Cannot brute force: needs exact blue channels from image AND exact altitudes from ephem combined
+    """
+
     nb = nbf.v4.new_notebook()
 
     # Header
-    title_cell = nbf.v4.new_markdown_cell("## CASH Notebook")
-    nb.cells.append(title_cell)
+    nb.cells.append(nbf.v4.new_markdown_cell("## CASH Notebook"))
+    nb.cells.append(nbf.v4.new_markdown_cell("## Celestial Chase - LVL 2: Ghost Stars"))
 
-    # Challenge title
-    challenge_cell = nbf.v4.new_markdown_cell("## Example Challenge LVL 2")
+    # --- Astronomy computation ---
+    obs = get_observer()
+    planet_names = ['Mars', 'Jupiter', 'Saturn', 'Mercury']
+    body_map = {
+        'Mars':    ephem.Mars,
+        'Jupiter': ephem.Jupiter,
+        'Saturn':  ephem.Saturn,
+        'Mercury': ephem.Mercury,
+    }
 
-    # Get the solution word
-    word = final_solution_word[::-1]
+    planet_data = {}  # name -> (az_deg, alt_deg, blue_channel)
+    for name in planet_names:
+        body = body_map[name]()
+        body.compute(obs)
+        az_deg  = int(math.degrees(float(body.az)))
+        alt_deg = int(math.degrees(float(body.alt)))
+        blue    = int(body.earth_distance * 1000) % 256
+        planet_data[name] = (az_deg, alt_deg, blue)
 
-    # Intro text with joke and hint
-    intro_text = f"""Welcome to the example template challenge this is level 2.
+    # Key: sum of (blue_channel + alt_deg) for each planet - needs cv2 + ephem
+    key  = sum(blue + alt for (_, alt, blue) in planet_data.values())
+    perm = make_perm(len(final_solution_word), key)
+    encoded_word = transpose_encode(final_solution_word, perm)
 
-Why do Java developers always wear glasses? Because they don't C#!
+    # --- Image generation - unique per user ---
+    W, H = 600, 600
+    rng = np.random.RandomState(final_challenge_code * 31 + 7)
 
-The secret token to find is: <{word}>
+    # Unique nebula per user: vary blob count, positions, colors, sizes
+    base = rng.randint(0, 50, (H, W, 3)).astype(np.uint8)
+    n_blobs = int(rng.randint(5, 10))
+    for _ in range(n_blobs):
+        cx    = int(rng.randint(0, W))
+        cy    = int(rng.randint(0, H))
+        r     = int(rng.randint(40, 180))
+        color = rng.randint(10, 110, 3).tolist()
+        cv2.circle(base, (cx, cy), r, color, -1)
+    img = cv2.GaussianBlur(base, (61, 61), 0)
+
+    # Unique background stars per user
+    n_bg = int(rng.randint(300, 600))
+    bxs  = rng.randint(0, W, n_bg)
+    bys  = rng.randint(0, H, n_bg)
+    bvs  = rng.randint(100, 255, n_bg)
+    for x, y, b in zip(bxs, bys, bvs):
+        img[y, x] = [b, b, b]
+
+    # Decoy near-white 3x3 patches: G=255, R=255, B=255 (pure white)
+    # Real planets have B != 255, so students filter: G==255 and R==255 and B!=255
+    n_decoys = int(rng.randint(6, 14))
+    for _ in range(n_decoys):
+        dpx = int(rng.randint(5, W-5))
+        dpy = int(rng.randint(5, H-5))
+        for ddx in range(-1, 2):
+            for ddy in range(-1, 2):
+                nx, ny = dpx+ddx, dpy+ddy
+                if 0 <= nx < W and 0 <= ny < H:
+                    img[ny, nx] = [255, 255, 255]  # pure white decoy
+
+    # Real planet markers: G=255, R=255, B=blue_channel (always < 255)
+    for name, (az_deg, alt_deg, blue) in planet_data.items():
+        blue = blue % 255  # ensure never 255 so decoys are distinguishable
+        px, py = az_alt_to_xy(az_deg, alt_deg, W, H)
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                nx, ny = px+dx, py+dy
+                if 0 <= nx < W and 0 <= ny < H:
+                    img[ny, nx] = [blue, 255, 255]  # BGR: B=blue (not 255)
+
+    img_b64 = img_to_base64(img)
+
+    # --- Notebook cells ---
+    intro_text = """The Astrophage trail leads deeper into the system. Four planets. Four signals. None of them quite white.
+
+Your instruments detect four near-white pixels scattered across the nebula. They look like noise - but they are not. Each one was placed by a planet at the exact moment of observation. Their blue channel encodes the distance. Their position in the sky encodes the altitude.
+
+Combine both to find the key.
+
+---
+
+**The encoded signal:** `{encoded}`
+
+**Your task:**
+1. Display the nebula and find the **four planet marker pixels** using `cv2`
+   - Filter: `G == 255` and `R == 255` and `B != 255` (pure white decoys have B=255, real markers don't)
+   - Each planet leaves a 3x3 marker - take the center of each cluster
+2. For each center pixel, read its **blue channel**: `img[y, x, 0]` (OpenCV uses BGR)
+3. Use `ephem` to compute each planet's **altitude in degrees** on `{date}` UTC from Zurich
+   Planets in order: `{planets}`
+4. Match each cluster to its planet using the position formula:
+   ```
+   x = int((az_deg % 360) / 360 * 600)
+   y = int((90 - alt_deg) / 180 * 600)
+   ```
+5. Build the key: `key = sum(blue_channel[i] + int(alt_deg[i]) for each planet)`
+6. Build the permutation and reverse the transposition
+""".format(encoded=encoded_word, date=OBS_DATE, planets=planet_names)
+
+    nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
+
+    # Image loader cell
+    image_cell = f"""import base64, cv2, numpy as np
+from IPython.display import display, Image as IPImage
+
+img_b64 = "{img_b64}"
+
+img_bytes = base64.b64decode(img_b64)
+img_arr   = np.frombuffer(img_bytes, dtype=np.uint8)
+img       = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+
+cv2.imwrite('nebula.png', img)
+display(IPImage('nebula.png'))
+print("Image shape:", img.shape)
 """
+    nb.cells.append(nbf.v4.new_code_cell(image_cell))
 
-    # Code cell with the challenge
-    code_message = f"""text = '''Welcome to the example template challenge this is level 2.
+    # Student solution cell
+    student_code = f"""import ephem, random, math, numpy as np
 
-Why do Java developers always wear glasses? Because they don't C#!
+encoded      = "{encoded_word}"
+obs_date     = "{OBS_DATE}"
+obs_lat      = "{OBS_LAT}"
+obs_lon      = "{OBS_LON}"
+planet_names = {planet_names}
+W, H         = 600, 600
 
-The secret token to find is: <{word}>'''
-"""
+# TODO Step 1: Find all near-white pixels (G==255 and R==255) in img
+# Group into 4 clusters and take the center of each
+# Hint: np.where((img[:,:,1]==255) & (img[:,:,2]==255))
 
-    # Template for student solution
-    complete_code = """
-# TODO: Extract the word between the < and > symbols
-answer = ""
+# TODO Step 2: For each cluster center (px, py) read blue channel
+# blue = img[py, px, 0]
+
+# TODO Step 3: Compute each planet's az and alt with ephem
+obs = ephem.Observer()
+obs.lat  = obs_lat
+obs.lon  = obs_lon
+obs.date = obs_date
+
+body_map = {{
+    'Mars':    ephem.Mars,
+    'Jupiter': ephem.Jupiter,
+    'Saturn':  ephem.Saturn,
+    'Mercury': ephem.Mercury,
+}}
+
+# Match each planet to its cluster using:
+# x = int((az_deg % 360) / 360 * W)
+# y = int((90 - alt_deg) / 180 * H)
+
+# TODO Step 4: Build the key
+# key = sum(blue_channel[i] + int(alt_deg[i]) for each planet in planet_names order)
+key = 0  # replace
+
+# TODO Step 5: Decode
+perm = list(range(len(encoded)))
+random.Random(key).shuffle(perm)
+
+def transpose_decode(encoded, perm):
+    pass  # decoded[perm[i]] = encoded[i] ... think about which direction
+
+answer = transpose_decode(encoded, perm)
 print(answer)
 """
+    nb.cells.append(nbf.v4.new_code_cell(student_code))
 
     # Solution code
-    solution_code = """
-# Extract text between < and >
-start = text.find('<') + 1
-end = text.find('>')
-answer = text[start:end]
-print(answer)
-"""
-    # TODO:
-    # Make sure to build up the notebook cells, and if the final_solution_flag tag is set, include the solution code cell (will be for the master solution)
-    nb.cells.append(challenge_cell)
-    nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
-    nb.cells.append(nbf.v4.new_code_cell(code_message))
-    nb.cells.append(nbf.v4.new_code_cell(complete_code))
+    solution_code = f"""import ephem, random, math, cv2, numpy as np, base64
 
+encoded      = "{encoded_word}"
+img_b64      = "{img_b64}"
+obs_date     = "{OBS_DATE}"
+obs_lat      = "{OBS_LAT}"
+obs_lon      = "{OBS_LON}"
+planet_names = {planet_names}
+W, H         = 600, 600
+
+img_bytes = base64.b64decode(img_b64)
+img_arr   = np.frombuffer(img_bytes, dtype=np.uint8)
+img       = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+
+# Find near-white clusters: G==255 and R==255
+from scipy import ndimage
+mask = (img[:,:,1] == 255) & (img[:,:,2] == 255)
+labeled, n_clusters = ndimage.label(mask)
+
+clusters = []
+for i in range(1, n_clusters + 1):
+    ys, xs = np.where(labeled == i)
+    cy, cx = int(np.median(ys)), int(np.median(xs))
+    blue   = int(img[cy, cx, 0])
+    clusters.append((cx, cy, blue))
+
+obs = ephem.Observer()
+obs.lat  = obs_lat
+obs.lon  = obs_lon
+obs.date = obs_date
+
+body_map = {{
+    'Mars':    ephem.Mars,
+    'Jupiter': ephem.Jupiter,
+    'Saturn':  ephem.Saturn,
+    'Mercury': ephem.Mercury,
+}}
+
+key = 0
+for name in planet_names:
+    body = body_map[name]()
+    body.compute(obs)
+    az_deg  = int(math.degrees(float(body.az)))
+    alt_deg = int(math.degrees(float(body.alt)))
+    ex = int((az_deg % 360) / 360 * W) % W
+    ey = int((90 - alt_deg) / 180 * H) % H
+    closest = min(clusters, key=lambda c: abs(c[0]-ex) + abs(c[1]-ey))
+    key += closest[2] + alt_deg
+
+perm = list(range(len(encoded)))
+random.Random(key).shuffle(perm)
+
+def transpose_decode(encoded, perm):
+    decoded = [''] * len(encoded)
+    for i, c in enumerate(encoded):
+        decoded[perm[i]] = c
+    return ''.join(decoded)
+
+answer = transpose_decode(encoded, perm)
+print(answer)  # {final_solution_word}
+"""
+
+    # TODO:
+    # Make sure to build up the notebook cells, and if the final_solution_flag tag is set, include the solution code cell
     if final_solution_flag:
         nb.cells.append(nbf.v4.new_code_cell(solution_code))
 
     # note: the notebook must be stored in the variable nb for the function call below
 
-
-
     # -----------------------------------------------------------------
     # do not modify the following line for generating the notebook file
-
     generate_notebook_lvl(final_challenge_code, final_solution_flag, nb, level=2)
-
     # -----------------------------------------------------------------
 
 
 def generate_notebook_lvl3(final_challenge_code=1, final_solution_flag=False):
-    # TODO: Customize the challenge text, jokes, and instructions for level 3
-    # You can modify:
-    # But keep the <word> placeholder so students extract the word from the word list
-    # do not modify the solution extraction logic below -- of course we encourage you to modify the content of your challenge dynamically
-    # according to the chosen final code word
+    # TODO: Customize the challenge text and instructions for level 3
+    # do not modify the solution extraction logic below
 
     # --------------------------------
     # Do not modify the solution token extraction logic
     final_solution_word = get_solution(final_challenge_code, 3)
     # --------------------------------
 
-    """Level 3: Extract from uppercase"""
+    """
+    Level 3: The Star Chart
+    - 800x800 chart with 15 real bright stars at actual sky positions (labelled)
+    - Stars sorted by altitude descending; top N (N=len(word)) carry the message
+    - Permutation = argsort of all 15 stars by altitude (top N positions = perm)
+    - Each transposed letter is ALSO Caesar-shifted by its star's red channel % 26
+    - Red channel is embedded in the image pixel for each top-N star
+    - Students: compute 15 star positions with ephem, sort by altitude, read red channels
+                with cv2, reverse Caesar shifts, reverse transposition
+    - Cannot brute force: 15! orderings, plus per-letter shifts from pixel values
+    """
+
     nb = nbf.v4.new_notebook()
 
     # Header
-    title_cell = nbf.v4.new_markdown_cell("## CASH Notebook")
-    nb.cells.append(title_cell)
+    nb.cells.append(nbf.v4.new_markdown_cell("## CASH Notebook"))
+    nb.cells.append(nbf.v4.new_markdown_cell("## Celestial Chase - LVL 3: The Star Chart"))
 
-    # Challenge title
-    challenge_cell = nbf.v4.new_markdown_cell("## Example Challenge LVL 3")
+    # --- Astronomy computation ---
+    obs = get_observer()
 
-    # Get the solution word
-    word = final_solution_word.upper()
+    STAR_NAMES = [
+        'Sirius', 'Canopus', 'Arcturus', 'Vega', 'Capella',
+        'Rigel', 'Procyon', 'Betelgeuse', 'Altair', 'Aldebaran',
+        'Antares', 'Spica', 'Pollux', 'Fomalhaut', 'Deneb',
+    ]
 
-    # Intro text with joke and hint
-    intro_text = f"""Welcome to the example template challenge this is level 3.
+    star_data = []  # (name, az_deg, alt_deg)
+    for name in STAR_NAMES:
+        star = ephem.star(name)
+        star.compute(obs)
+        az_deg  = int(math.degrees(float(star.az)))
+        alt_deg = int(math.degrees(float(star.alt)))
+        star_data.append((name, az_deg, alt_deg))
 
-How many programmers does it take to change a light bulb? None, that's a hardware problem!
+    n = len(final_solution_word)
 
-The secret token to find is: <{word}>
+    # Sort all stars by altitude descending, take top N
+    sorted_stars = sorted(star_data, key=lambda s: s[2], reverse=True)
+    top_stars    = sorted_stars[:n]
+
+    # Permutation = identity (the altitude rank IS the arrangement)
+    # Per-letter Caesar shift = red channel % 26 (deterministic from star name + code)
+    red_channels = []
+    for name, _, _ in top_stars:
+        rc = (abs(hash(name + str(final_challenge_code))) % 200) + 28
+        red_channels.append(rc % 26)
+
+    # Encode: first transpose (identity perm), then per-letter Caesar shift
+    perm = list(range(n))
+    transposed = transpose_encode(final_solution_word, perm)  # identity = no change
+    encoded_word = ''
+    for i, c in enumerate(transposed):
+        shift = red_channels[i]
+        encoded_word += chr((ord(c) - ord('a') + shift) % 26 + ord('a'))
+
+    # --- Image generation - unique per user ---
+    W, H = 800, 800
+    rng = np.random.RandomState(final_challenge_code * 53 + 11)
+
+    # Unique dark background with nebula hints per user
+    base = rng.randint(0, 20, (H, W, 3)).astype(np.uint8)
+    n_blobs = int(rng.randint(3, 7))
+    for _ in range(n_blobs):
+        cx    = int(rng.randint(0, W))
+        cy    = int(rng.randint(0, H))
+        r     = int(rng.randint(80, 250))
+        color = [int(rng.randint(0, 15)), int(rng.randint(0, 15)), int(rng.randint(5, 25))]
+        cv2.circle(base, (cx, cy), r, color, -1)
+    img = cv2.GaussianBlur(base, (81, 81), 0)
+
+    # Unique background noise stars per user
+    n_bg = int(rng.randint(400, 700))
+    bxs  = rng.randint(0, W, n_bg)
+    bys  = rng.randint(0, H, n_bg)
+    bvs  = rng.randint(80, 220, n_bg)
+    for x, y, b in zip(bxs, bys, bvs):
+        img[y, x] = [b, b, b]
+
+    # Draw all 15 named stars as white circles
+    for name, az_deg, alt_deg in star_data:
+        px, py = az_alt_to_xy(az_deg, alt_deg, W, H)
+        cv2.circle(img, (px, py), 3, (200, 200, 200), -1)
+
+    # Decoy red pixels: B=0, G=0, R in 1-27 (dim red, looks similar but value is low)
+    # Real message stars: R in 28-227 (always >= 28 by construction)
+    n_decoys = int(rng.randint(8, 18))
+    for _ in range(n_decoys):
+        dpx = int(rng.randint(5, W-5))
+        dpy = int(rng.randint(5, H-5))
+        fake_r = int(rng.randint(1, 27))
+        cv2.circle(img, (dpx, dpy), 4, (0, 0, fake_r), -1)
+
+    # Real message stars: R in 28-227 (students filter R >= 28)
+    for i, (name, az_deg, alt_deg) in enumerate(top_stars):
+        rc = (abs(hash(name + str(final_challenge_code))) % 200) + 28  # always 28-227
+        px, py = az_alt_to_xy(az_deg, alt_deg, W, H)
+        cv2.circle(img, (px, py), 4, (0, 0, rc), -1)
+
+    # Label all 15 named stars (same positions for all users - astronomy is fixed)
+    for name, az_deg, alt_deg in star_data:
+        px, py = az_alt_to_xy(az_deg, alt_deg, W, H)
+        cv2.putText(img, name, (px+5, py-5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (160, 160, 160), 1, cv2.LINE_AA)
+
+    img_b64 = img_to_base64(img)
+
+    # --- Notebook cells ---
+    intro_text = """You are alone. 40 light-years from Earth. The Hail Mary is your last hope.
+
+Mission control's final message was not sent in words. It was written in the stars themselves.
+
+They ranked every visible star by how high it stood in the sky. The brightest in altitude came first. They marked {n} of them red - one per letter. The redness tells you the shift. The rank tells you the order.
+
+Find the red stars. Measure their glow. Undo the shifts. The word will appear.
+
+---
+
+**The encoded signal:** `{encoded}`
+
+**Your task:**
+1. Display the star chart. The **red pixels** carry the message - filter by `B == 0` and `G == 0` and `R >= 28`. Decoy red pixels have `R < 28`.
+2. Use `ephem` to compute the **altitude** of all 15 stars on `{date}` UTC from Zurich:
+   ```python
+   stars = {stars}
+   ```
+3. Sort all 15 stars by altitude **descending**. Take the top **{n}** - these are the message stars, in order.
+4. For each of the top {n} stars (in altitude-rank order), find its pixel in the chart and read the **red channel**: `img[y, x, 2]`
+5. **Reverse the Caesar shift** for each letter `i`: `decoded[i] = (encoded[i] - red_channel[i] % 26) % 26`
+6. The transposition is the identity permutation - so after reversing shifts the word is already in order.
+
+**Position formula:**
+```python
+x = int((az_deg % 360) / 360 * 800) % 800
+y = int((90 - alt_deg) / 180 * 800) % 800
+```
+""".format(encoded=encoded_word, date=OBS_DATE, n=n, stars=STAR_NAMES)
+
+    nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
+
+    # Image loader cell
+    image_cell = f"""import base64, cv2, numpy as np
+from IPython.display import display, Image as IPImage
+
+img_b64 = "{img_b64}"
+
+img_bytes = base64.b64decode(img_b64)
+img_arr   = np.frombuffer(img_bytes, dtype=np.uint8)
+img       = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+
+cv2.imwrite('starchart.png', img)
+display(IPImage('starchart.png'))
+print("Image shape:", img.shape)
 """
+    nb.cells.append(nbf.v4.new_code_cell(image_cell))
 
-    # Code cell with the challenge
-    code_message = f"""text = '''Welcome to the example template challenge this is level 3.
+    # Student solution cell
+    student_code = f"""import ephem, math, numpy as np
 
-How many programmers does it take to change a light bulb? None, that's a hardware problem!
+encoded    = "{encoded_word}"
+obs_date   = "{OBS_DATE}"
+obs_lat    = "{OBS_LAT}"
+obs_lon    = "{OBS_LON}"
+n          = {n}
+W, H       = 800, 800
+star_names = {STAR_NAMES}
 
-The secret token to find is: <{word}>'''
-"""
+# TODO Step 1: Compute az and alt for each star
+obs = ephem.Observer()
+obs.lat  = obs_lat
+obs.lon  = obs_lon
+obs.date = obs_date
 
-    # Template for student solution
-    complete_code = """
-# TODO: Extract the word between the < and > symbols
+star_data = []
+for name in star_names:
+    star = ephem.star(name)
+    star.compute(obs)
+    az_deg  = int(math.degrees(float(star.az)))
+    alt_deg = int(math.degrees(float(star.alt)))
+    star_data.append((name, az_deg, alt_deg))
+
+# TODO Step 2: Sort by altitude descending, take top n
+sorted_stars = sorted(star_data, key=lambda s: s[2], reverse=True)
+top_stars    = sorted_stars[:n]
+
+# TODO Step 3: For each top star compute pixel position and read red channel from img
+# x = int((az_deg % 360) / 360 * W) % W
+# y = int((90 - alt_deg) / 180 * H) % H
+# red = img[y, x, 2]
+red_channels = []  # fill this in - should have n values
+
+# TODO Step 4: Reverse the Caesar shifts
 answer = ""
+for i, c in enumerate(encoded):
+    shift = red_channels[i] % 26
+    answer += chr((ord(c) - ord('a') - shift) % 26 + ord('a'))
+
 print(answer)
 """
+    nb.cells.append(nbf.v4.new_code_cell(student_code))
 
     # Solution code
-    solution_code = """
-# Extract text between < and >
-start = text.find('<') + 1
-end = text.find('>')
-answer = text[start:end]
-print(answer)
-"""
-    # TODO:
-    # Make sure to build up the notebook cells, and if the final_solution_flag tag is set, include the solution code cell (will be for the master solution)
-    nb.cells.append(challenge_cell)
-    nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
-    nb.cells.append(nbf.v4.new_code_cell(code_message))
-    nb.cells.append(nbf.v4.new_code_cell(complete_code))
+    solution_code = f"""import ephem, math, cv2, numpy as np, base64
 
+encoded    = "{encoded_word}"
+img_b64    = "{img_b64}"
+obs_date   = "{OBS_DATE}"
+obs_lat    = "{OBS_LAT}"
+obs_lon    = "{OBS_LON}"
+n          = {n}
+W, H       = 800, 800
+star_names = {STAR_NAMES}
+
+img_bytes = base64.b64decode(img_b64)
+img_arr   = np.frombuffer(img_bytes, dtype=np.uint8)
+img       = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+
+obs = ephem.Observer()
+obs.lat  = obs_lat
+obs.lon  = obs_lon
+obs.date = obs_date
+
+star_data = []
+for name in star_names:
+    star = ephem.star(name)
+    star.compute(obs)
+    az_deg  = int(math.degrees(float(star.az)))
+    alt_deg = int(math.degrees(float(star.alt)))
+    star_data.append((name, az_deg, alt_deg))
+
+sorted_stars = sorted(star_data, key=lambda s: s[2], reverse=True)
+top_stars    = sorted_stars[:n]
+
+red_channels = []
+for name, az_deg, alt_deg in top_stars:
+    px = int((az_deg % 360) / 360 * W) % W
+    py = int((90 - alt_deg) / 180 * H) % H
+    red_channels.append(int(img[py, px, 2]))
+
+answer = ""
+for i, c in enumerate(encoded):
+    shift = red_channels[i] % 26
+    answer += chr((ord(c) - ord('a') - shift) % 26 + ord('a'))
+
+print(answer)  # {final_solution_word}
+"""
+
+    # TODO:
+    # Make sure to build up the notebook cells, and if the final_solution_flag tag is set, include the solution code cell
     if final_solution_flag:
         nb.cells.append(nbf.v4.new_code_cell(solution_code))
 
     # note: the notebook must be stored in the variable nb for the function call below
 
-
-
     # -----------------------------------------------------------------
     # do not modify the following line for generating the notebook file
-
     generate_notebook_lvl(final_challenge_code, final_solution_flag, nb, level=3)
-
     # -----------------------------------------------------------------
 
 
