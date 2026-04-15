@@ -8,8 +8,8 @@ import math
 # ============================================================================
 
 challenge_metadata = {
-    "title": "hello",
-    "description": "A simple example challenge to demonstrate the challenge system. Extract hidden words from puzzles.",
+    "title": "Celestial Chase",
+    "description": "Stranded light-years from home, your only way back is written in the stars. Decode the cosmos before time runs out.",
     "imageURL": "/resources/python.jpg",
     "difficulty": "Astronomically Hard",
     "is_active": True,
@@ -18,7 +18,7 @@ challenge_metadata = {
 # ============================================================================
 # CONFIGURATION: One-word title for file naming (change when copying to hs25, fs26, etc.)
 # ============================================================================
-one_word_title = "example"
+one_word_title = "celestialchase"
 
 challenge_hints = {
     1: {
