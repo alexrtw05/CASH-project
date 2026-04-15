@@ -7,7 +7,7 @@ import os
 # ============================================================================
 
 challenge_metadata = {
-    "title": "Example Challenge",
+    "title": "hello",
     "description": "A simple example challenge to demonstrate the challenge system. Extract hidden words from puzzles.",
     "imageURL": "/resources/python.jpg",
     "difficulty": "easy",
