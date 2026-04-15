@@ -1,7 +1,8 @@
 import nbformat as nbf
 import random
 import os
-
+import ephem
+import math
 # ============================================================================
 # CHALLENGE METADATA - Required for automatic challenge registration
 # ============================================================================
@@ -10,7 +11,7 @@ challenge_metadata = {
     "title": "hello",
     "description": "A simple example challenge to demonstrate the challenge system. Extract hidden words from puzzles.",
     "imageURL": "/resources/python.jpg",
-    "difficulty": "easy",
+    "difficulty": "Astronomically Hard",
     "is_active": True,
 }
 
@@ -67,6 +68,11 @@ words = [
     "library", "import", "class", "object", "method"
 ]
 
+# Fixed observation constants all students use the same date/location
+OBS_DATE = '2025/6/21 12:00:00'  # Summer solstice
+OBS_LAT  = '47.3769'             # Zurich
+OBS_LON  = '8.5417'
+
 # ============================================================================
 # DO NOT MODIFY: The functions below are required for the challenge system
 # ============================================================================
@@ -121,8 +127,6 @@ def get_hash(number):
 
 
 
-
-
 def generate_notebook_lvl(final_challenge_code=1, solution=False, nb=None, level=1):
     # ---------------------------------------------------------
     # do not modify this section for generating the notebook file
@@ -143,6 +147,33 @@ def generate_notebook_lvl(final_challenge_code=1, solution=False, nb=None, level
 # END: DO NOT MODIFY
 # ============================================================================
 
+# ============================================================================
+# ENCODING HELPERS
+# ============================================================================
+def get_body_altitude_shift(body_name):
+    """Returns int(altitude_degrees) % 26 for a given celestial body."""
+    obs = ephem.Observer()
+    obs.lat = OBS_LAT
+    obs.lon = OBS_LON
+    obs.date = OBS_DATE
+    body_map = {
+        'Sun':     ephem.Sun,
+        'Moon':    ephem.Moon,
+        'Mercury': ephem.Mercury,
+        'Venus':   ephem.Venus,
+        'Mars':    ephem.Mars,
+        'Jupiter': ephem.Jupiter,
+        'Saturn':  ephem.Saturn,
+    }
+    body = body_map[body_name]()
+    body.compute(obs)
+    return int(math.degrees(float(body.alt))) % 26
+
+def get_moon_phase_shift():
+    """Returns int(moon.phase) % 26 - does not need observer."""
+    moon = ephem.Moon()
+    moon.compute(OBS_DATE)
+    return int(moon.phase) % 26
 
 # ============================================================================
 # TODO SECTION: Notebook Level Challenges
