@@ -1,0 +1,168 @@
+\documentclass[10pt,twocolumn]{article}
+
+% ====== Basic Packages ======
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{adjustbox}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+% ====== Formatting ======
+\setlist{nosep}
+\renewcommand{\baselinestretch}{1.0}
+\setlength{\columnsep}{0.25in}
+
+% ====== Title & Authors ======
+\title{\textbf{CASH Project Challenge: \textit{[Your Challenge Name]}}}
+
+\author{
+    \begin{tabular}{c}
+        \textbf{Alice Example} \\
+        \texttt{alice.example@ethz.ch}
+    \end{tabular}
+    \and
+    \begin{tabular}{c}
+        \textbf{Bob Example} \\
+        \texttt{bob.example@ethz.ch}
+    \end{tabular}
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+
+% ====== 1. Introduction and Motivation ======
+\section{Introduction and Motivation}
+
+\textbf{Discuss:}
+\begin{itemize}
+    \item The overarching motivation behind your challenge — what concept you want to focus on, and what the overall theme of the challenge is (e.g., writing and presentation style).
+    \item Why this challenge is relevant to the CASH course and what tools or concepts participants are expected to learn about.
+\end{itemize}
+
+% ====== 2. Technical Background ======
+\section{Technical Background}
+
+\textbf{Discuss:}
+\begin{itemize}
+    \item The theoretical and technical principles underlying the challenge (e.g., encryption, computer vision, general computer science tools, etc.).
+    \item Tools or libraries used to develop the challenge.
+    \item Key algorithms or concepts participants will need to understand.
+    \item Expected technical skills developed through the challenge.
+\end{itemize}
+
+% ====== 3. Challenge Structure ======
+\section{Challenge Structure}
+
+\textbf{Overview:}
+\begin{itemize}
+    \item The challenge contains three levels of increasing complexity.
+    \item Briefly discuss the idea behind each level, how they differ, and the chosen difficulty level.
+\end{itemize}
+
+% ----- 3.1 Level 1 -----
+\subsection{Level 1: [Title or Focus]}
+\textbf{Discuss:}
+\begin{itemize}
+    \item The learning objective and conceptual focus of Level 1 — what is Level 1 about?
+    \item How dynamic generation ensures unique notebooks (e.g., different text, data, or parameters).
+    \item How the master solution solves this variant.
+\end{itemize}
+
+% ----- 3.2 Level 2 -----
+\subsection{Level 2: [Title or Focus]}
+\textbf{Discuss:}
+\begin{itemize}
+    \item How this level extends or modifies Level 1 — what is new, and what can be repurposed.
+    \item The learning objective and conceptual focus of Level 2 — what is Level 2 about?
+    \item How dynamic generation ensures unique notebooks (e.g., different text, data, or parameters).
+    \item How the master solution solves this variant.
+\end{itemize}
+
+% ----- 3.3 Level 3 -----
+\subsection{Level 3: [Title or Focus]}
+\textbf{Discuss:}
+\begin{itemize}
+    \item How this level extends or modifies Level 2 — what is new, and what can be repurposed.
+    \item The learning objective and conceptual focus of Level 3 — what is Level 3 about?
+    \item How dynamic generation ensures unique notebooks (e.g., different text, data, or parameters).
+    \item How the master solution solves this variant.
+\end{itemize}
+
+% ====== Example Figure ======
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\linewidth]{example-figure.png}
+    \caption{Example visualization of the generated challenge, a used tool, or data visualization. 
+    Replace with your own plot or schematic illustrating the problem setup.}
+    \label{fig:example}
+\end{figure}
+
+% ====== Example Table ======
+\begin{table}[h]
+    \centering
+    \caption{Overview of challenge levels, intended tools, and data used.}
+    \label{tab:levels}
+    \begin{adjustbox}{max width=\linewidth}
+    \begin{tabular}{@{}llll@{}}
+        \toprule
+        \textbf{Level} & \textbf{Main Focus} & \textbf{Tools} & \textbf{Data/Inputs} \\
+        \midrule
+        1 & Key Idea 1 & Tool1, Tool2, Matplotlib & No Additional Data \\
+        2 & Key Idea 2 & Library1, Tool3 & Dynamic Data from Source X \\
+        3 & Key Idea 3 & -- & Dynamic Data from Source Y \\
+        \bottomrule
+    \end{tabular}
+    \end{adjustbox}
+\end{table}
+
+% ====== 4. LLM Robustness Considerations ======
+\section{Optional: LLM Robustness Considerations}
+
+\textbf{Discuss:}
+\begin{itemize}
+    \item How your challenge avoids trivial solutions from large language models (LLMs).
+\end{itemize}
+
+% ====== 5. Discussion and Conclusion ======
+\section{Discussion and Conclusion}
+
+\textbf{Discuss:}
+\begin{itemize}
+    \item What was the challenge about? Main theme and level design.
+    \item What tools and challenges students are expected to encounter.
+    \item General conclusions on encountered challenges or discussion of possible shortcut solutions.
+    \item Future improvements, potential extensions, or new ideas for variation.
+\end{itemize}
+
+% ====== Appendix (Optional) ======
+\appendix
+\section{Reproducibility and Setup}
+
+\textbf{Include:}
+\begin{itemize}
+    \item What tools and data were used for development — is the development and challenge generation process reproducible?
+    \item Notes on runtime, determinism, and reproducibility.
+\end{itemize}
+
+% ====== References ======
+\begin{thebibliography}{9}
+\bibitem{ethcash} ETH Zurich. \textit{CASH Course Website (HS25)}. \url{https://disco.ethz.ch/courses/hs25/cash/}
+\bibitem{pytorch} PyTorch. \textit{PyTorch Documentation}. \url{https://pytorch.org/docs/stable/index.html}
+\bibitem{numpy} NumPy Developers. \textit{NumPy User Guide}. \url{https://numpy.org/doc/stable/user/}
+\end{thebibliography}
+
+\end{document}
