@@ -169,12 +169,31 @@ def get_body_altitude_shift(body_name):
     body.compute(obs)
     return int(math.degrees(float(body.alt))) % 26
 
-def get_moon_phase_shift():
-    """Returns int(moon.phase) % 26 - does not need observer."""
+def get_moon_phase_shift(obs_date):
+    """Returns int(moon.phase) % 26 for the given date."""
     moon = ephem.Moon()
-    moon.compute(OBS_DATE)
+    moon.compute(obs_date)
     return int(moon.phase) % 26
 
+def caesar_encode(word, shift):
+    """Encode a word with a single Caesar shift."""
+    result = ""
+    for c in word:
+        if c.isalpha():
+            result += chr((ord(c) - ord('a') + int(shift)) % 26 + ord('a'))
+        else:
+            result += c
+    return result
+ 
+def caesar_encode_multi(word, shifts):
+    """Encode each letter with its own shift from the shifts list (cyclic)."""
+    result = ""
+    for i, c in enumerate(word):
+        if c.isalpha():
+            result += chr((ord(c) - ord('a') + int(shifts[i % len(shifts)])) % 26 + ord('a'))
+        else:
+            result += c
+    return result
 # ============================================================================
 # TODO SECTION: Notebook Level Challenges
 # ============================================================================
@@ -201,77 +220,113 @@ def generate_notebook_lvl1(final_challenge_code=1, final_solution_flag=False):
     # But keep the <word> placeholder so students extract the word from the word list
     # do not modify the solution extraction logic below -- of course we encourage you to modify the content of your challenge dynamically 
     # according to the chosen final code word
-
+ 
     # --------------------------------
     # Do not modify the solution token extraction logic
     final_solution_word = get_solution(final_challenge_code, 1)
     # --------------------------------
-
-    """Level 1: Find the secret word"""
+ 
+    """Level 1: Moon Phase Caesar - decode word using moon illumination as shift"""
     nb = nbf.v4.new_notebook()
-
+ 
     # Header
     title_cell = nbf.v4.new_markdown_cell("## CASH Notebook")
     nb.cells.append(title_cell)
-
+ 
     # Challenge title
-    challenge_cell = nbf.v4.new_markdown_cell("## Example Challenge LVL 1")
+    challenge_cell = nbf.v4.new_markdown_cell("## Lunar Calibration")
+ 
+    # Offset date by challenge code in weekly steps - moon phase changes ~12% per week
+    base_date = ephem.Date('2025/1/1 12:00:00')
+    obs_date = str(ephem.Date(base_date + final_challenge_code * 7))
 
-    # Get the solution word
-    word = final_solution_word[::-1]
-
+    # Get the solution word encoded with moon phase shift for this student's date
+    shift = get_moon_phase_shift(obs_date)
+    encoded_word = caesar_encode(final_solution_word, shift)
+ 
     # Intro text with joke and hint
-    intro_text = f"""Welcome to the example template challenge this is level 1.
-
-Why did the programmer quit his job? Because he didn't get arrays!
-
-The secret token to find is: <{word}>
+    intro_text = f"""You've just woken up from cryo-sleep. No memory. No crew. Just you, a dying sun, and a faint signal pulsing in rhythm with the Moon.
+Decode the pulse.
+It's the only clue you have.
+ 
+---
+ 
+The Moon lights up the endless black,
+Find how much of her face looks back.
+On the solstice at times, UTC,
+Take that percent, mod twenty-six is your key.
+Shift each letter back by that amount,
+And the signal from deep space will finally count.
+ 
+**Encoded signal:** `{encoded_word}`
 """
+ 
+    # Code cell with the challenge setup
+    code_message = f"""import ephem
 
-    # Code cell with the challenge
-    code_message = f"""text = '''Welcome to the example template challenge this is level 1.
-
-Why did the programmer quit his job? Because he didn't get arrays!
-
-The secret token to find is: <{word}>'''
+encoded = "{encoded_word}"
+obs_date = "{obs_date}"
 """
-
+ 
     # Template for student solution
-    complete_code = """
-# TODO: Extract the word between the < and > symbols
-answer = ""
-print(answer)
-"""
+    complete_code = """# TODO: compute the Moon's phase using the ephem library
 
-    # Solution code
-    solution_code = """
-# Extract text between < and >
-start = text.find('<') + 1
-end = text.find('>')
-answer = text[start:end][::-1]
+ 
+# TODO: find the shift
+shift = ...
+ 
+# TODO: solve the cypher
+def solve(...):
+    
+answer = solve(...)
 print(answer)
 """
+ 
+    # Solution code
+    solution_code = f"""import ephem
+
+encoded = "{encoded_word}"
+obs_date = "{obs_date}"
+
+moon = ephem.Moon()
+moon.compute(obs_date)
+shift = int(moon.phase) % 26
+ 
+def caesar_decode(word, shift):
+    result = ""
+    for c in word:
+        if c.isalpha():
+            result += chr((ord(c) - ord('a') - shift) % 26 + ord('a'))
+        else:
+            result += c
+    return result
+ 
+answer = caesar_decode(encoded, shift)
+print(answer)  # {final_solution_word}
+"""
+ 
     # TODO: 
     # Make sure to build up the notebook cells, and if the final_solution_flag tag is set, include the solution code cell (will be for the master solution)
     nb.cells.append(challenge_cell)
     nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
     nb.cells.append(nbf.v4.new_code_cell(code_message))
     nb.cells.append(nbf.v4.new_code_cell(complete_code))
-
+ 
     if final_solution_flag:
         nb.cells.append(nbf.v4.new_code_cell(solution_code))
-
+ 
     # note: the notebook must be stored in the variable nb for the function call below
-
-
-
+ 
+ 
+ 
     # -----------------------------------------------------------------
     # do not modify the following line for generating the notebook file
-
+ 
     generate_notebook_lvl(final_challenge_code, final_solution_flag, nb, level=1)
-
+ 
     # -----------------------------------------------------------------
-
+ 
+ 
 
 def generate_notebook_lvl2(final_challenge_code=1, final_solution_flag=False):
     # TODO: Customize the challenge text, jokes, and instructions for level 2
