@@ -2,7 +2,7 @@
 
 > *Stranded light-years from home, your only way back is written in the stars. Decode the cosmos before time runs out.*
 
-A three-level astronomy coding challenge built for the CASH scavenger hunt system. Students use the `ephem` Python library to decode secret words hidden using real celestial mechanics.
+A three-level astronomy coding challenge built for the CASH scavenger hunt. Students use the `ephem` Python library to decode secret words hidden using real celestial mechanics.
 
 ---
 
