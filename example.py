@@ -246,7 +246,7 @@ def generate_notebook_lvl1(final_challenge_code=1, final_solution_flag=False):
     nb.cells.append(nbf.v4.new_markdown_cell("## Celestial Chase - LVL 1: The Teal Beacon"))
     nb.cells.append(nbf.v4.new_markdown_cell(
         "### 🛰️ Need help? Open the mission briefing:\n"
-        "[**OPEN LVL 1 HINT PAGE**](https://alexrtw05.github.io/CASH-project/docs/lvl1.html)\n\n"
+        "[**OPEN LVL 1 HINT PAGE**](https://alexrtw05.github.io/CASH-project/lvl1.html)\n\n"
         "_Open in your browser for cipher tools, hints, and the full mission narrative._"
     ))
 
@@ -455,7 +455,7 @@ def generate_notebook_lvl2(final_challenge_code=1, final_solution_flag=False):
     nb.cells.append(nbf.v4.new_markdown_cell("## Celestial Chase - LVL 2: Ghost Stars"))
     nb.cells.append(nbf.v4.new_markdown_cell(
         "### 🛰️ Need help? Open the mission briefing:\n"
-        "[**OPEN LVL 2 HINT PAGE**](https://alexrtw05.github.io/CASH-project/docs/lvl2.html)\n\n"
+        "[**OPEN LVL 2 HINT PAGE**](https://alexrtw05.github.io/CASH-project/lvl2.html)\n\n"
         "_Open in your browser for BGR explainers, cluster tools, and the key calculator._"
     ))
 
@@ -729,7 +729,7 @@ def generate_notebook_lvl3(final_challenge_code=1, final_solution_flag=False):
     nb.cells.append(nbf.v4.new_markdown_cell("## Celestial Chase - LVL 3: The Star Chart"))
     nb.cells.append(nbf.v4.new_markdown_cell(
         "### 🛰️ Need help? Open the mission briefing:\n"
-        "[**OPEN LVL 3 HINT PAGE**](https://alexrtw05.github.io/CASH-project/docs/lvl3.html)\n\n"
+        "[**OPEN LVL 3 HINT PAGE**](https://alexrtw05.github.io/CASH-project/lvl3.html)\n\n"
         "_Open in your browser for the star altitude sorter, Caesar decoder, and full pipeline guide._"
     ))
 
