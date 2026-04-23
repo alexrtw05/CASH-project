@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CASH // LVL 1 - The Teal Beacon</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #00ffff;
+    --dim-cyan: #00aaaa;
+    --bg: #020810;
+    --panel: #040f1a;
+    --border: #0a2a3a;
+    --text: #8bb8c8;
+    --bright: #d0eef8;
+    --warn: #ff6b35;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated starfield */
+  #stars {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle var(--dur) ease-in-out infinite;
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: var(--min-op); }
+    50% { opacity: 1; }
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .container {
+    position: relative;
+    z-index: 2;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .transmission-badge {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--cyan);
+    border: 1px solid var(--dim-cyan);
+    padding: 4px 16px;
+    margin-bottom: 20px;
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: var(--dim-cyan); box-shadow: none; }
+    50% { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,255,255,0.3); }
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 900;
+    color: var(--cyan);
+    letter-spacing: 2px;
+    text-shadow: 0 0 30px rgba(0,255,255,0.5);
+    line-height: 1.1;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: var(--dim-cyan);
+    margin-top: 8px;
+  }
+
+  /* Progress tracker */
+  .progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 48px;
+  }
+
+  .prog-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .prog-dot {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    transition: all 0.3s;
+  }
+
+  .prog-dot.active {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 16px rgba(0,255,255,0.4);
+    background: rgba(0,255,255,0.05);
+  }
+
+  .prog-dot.done {
+    border-color: #004444;
+    color: #004444;
+    background: #001a1a;
+  }
+
+  .prog-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--dim-cyan);
+  }
+
+  .prog-line {
+    width: 60px;
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 20px;
+  }
+
+  /* Narrative */
+  .narrative {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    padding: 24px 28px;
+    margin-bottom: 32px;
+    font-size: 14px;
+    line-height: 1.9;
+    color: var(--bright);
+    position: relative;
+  }
+
+  .narrative::before {
+    content: '// TRANSMISSION LOG';
+    position: absolute;
+    top: -10px; left: 16px;
+    background: var(--panel);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--cyan);
+  }
+
+  .narrative em {
+    color: var(--cyan);
+    font-style: normal;
+  }
+
+  /* Section panels */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 28px;
+    margin-bottom: 24px;
+    position: relative;
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Cipher explainer */
+  .cipher-demo {
+    margin: 20px 0;
+  }
+
+  .cipher-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin: 8px 0;
+    flex-wrap: wrap;
+  }
+
+  .cipher-cell {
+    width: 44px; height: 44px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--bright);
+    transition: all 0.4s;
+    position: relative;
+  }
+
+  .cipher-cell.highlight {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: rgba(0,255,255,0.05);
+    box-shadow: 0 0 8px rgba(0,255,255,0.2);
+  }
+
+  .cipher-cell .idx {
+    position: absolute;
+    bottom: 2px; right: 3px;
+    font-size: 8px;
+    color: var(--dim-cyan);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .cipher-arrow {
+    text-align: center;
+    color: var(--cyan);
+    font-size: 20px;
+    margin: 6px 0;
+  }
+
+  .cipher-label {
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim-cyan);
+    margin: 4px 0 12px;
+  }
+
+  /* Code blocks */
+  .code-block {
+    background: #010a12;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--dim-cyan);
+    padding: 16px 20px;
+    font-size: 13px;
+    line-height: 1.8;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+
+  .code-block .kw { color: #569cd6; }
+  .code-block .fn { color: #dcdcaa; }
+  .code-block .st { color: #ce9178; }
+  .code-block .cm { color: #4a6a4a; }
+  .code-block .num { color: #b5cea8; }
+  .code-block .var { color: #9cdcfe; }
+
+  /* Hint boxes */
+  .hint-box {
+    border: 1px solid var(--warn);
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: var(--warn);
+    line-height: 1.7;
+    position: relative;
+  }
+
+  .hint-box::before {
+    content: '! HINT';
+    position: absolute;
+    top: -9px; left: 12px;
+    background: var(--panel);
+    padding: 0 6px;
+    font-size: 10px;
+    letter-spacing: 3px;
+  }
+
+  /* Interactive decoder tool */
+  .tool-section {
+    margin-top: 20px;
+  }
+
+  .tool-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .tool-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim-cyan);
+    margin-bottom: 6px;
+  }
+
+  .tool-input {
+    flex: 1;
+    min-width: 200px;
+    background: #010a12;
+    border: 1px solid var(--border);
+    color: var(--bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .tool-input:focus { border-color: var(--cyan); }
+
+  .tool-btn {
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tool-btn:hover {
+    background: rgba(0,255,255,0.1);
+    box-shadow: 0 0 12px rgba(0,255,255,0.3);
+  }
+
+  .tool-output {
+    background: #010a12;
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    font-size: 18px;
+    font-family: 'Orbitron', sans-serif;
+    color: var(--cyan);
+    min-height: 48px;
+    letter-spacing: 4px;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .tool-error { color: var(--warn); font-size: 12px; }
+
+  /* Steps list */
+  .steps { list-style: none; padding: 0; }
+  .steps li {
+    padding: 10px 0 10px 32px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    line-height: 1.7;
+    position: relative;
+    color: var(--bright);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step-counter);
+    counter-increment: step-counter;
+    position: absolute;
+    left: 0;
+    top: 10px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    color: var(--cyan);
+    background: rgba(0,255,255,0.08);
+    border: 1px solid var(--dim-cyan);
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 2px;
+  }
+  .steps { counter-reset: step-counter; }
+
+  code {
+    background: #010a12;
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--cyan);
+    font-size: 12px;
+  }
+
+  .footer {
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: #1a3a4a;
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<div id="stars"></div>
+
+<div class="container">
+
+  <div class="header">
+    <div class="transmission-badge">INCOMING TRANSMISSION</div>
+    <h1>THE TEAL BEACON</h1>
+    <div class="subtitle">CELESTIAL CHASE // LEVEL 01</div>
+  </div>
+
+  <div class="progress">
+    <div class="prog-step">
+      <div class="prog-dot active">01</div>
+      <div class="prog-label">BEACON</div>
+    </div>
+    <div class="prog-line"></div>
+    <div class="prog-step">
+      <div class="prog-dot">02</div>
+      <div class="prog-label">GHOST</div>
+    </div>
+    <div class="prog-line"></div>
+    <div class="prog-step">
+      <div class="prog-dot">03</div>
+      <div class="prog-label">CHART</div>
+    </div>
+  </div>
+
+  <div class="narrative">
+    You've just woken from cryo-sleep. Your hands are shaking. The ship's AI is offline.
+    On the main display — a single blinking cursor and a field of static stars.<br><br>
+    But one of them is <em>wrong</em>. Not white. Not grey. <em>Teal.</em><br><br>
+    That color doesn't belong to any background star. It belongs to a planet — and the planet is sending you something.
+    The signal is scrambled. <em>Decode it.</em>
+  </div>
+
+  <!-- What is a transposition cipher -->
+  <div class="panel">
+    <div class="panel-title">// WHAT IS A TRANSPOSITION CIPHER</div>
+    <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
+      A transposition cipher does not change the letters - it <em style="color:var(--cyan)">rearranges</em> them.
+      The same letters, different order. To decode it, you need to know exactly how they were rearranged.
+    </p>
+
+    <div class="cipher-demo">
+      <div class="cipher-label">ORIGINAL WORD</div>
+      <div class="cipher-row" id="original-row"></div>
+
+      <div class="cipher-arrow">↓ permutation applied ↓</div>
+
+      <div class="cipher-label">ENCODED (SCRAMBLED)</div>
+      <div class="cipher-row" id="encoded-row"></div>
+
+      <div class="cipher-arrow">↓ reversed to decode ↓</div>
+
+      <div class="cipher-label">DECODED</div>
+      <div class="cipher-row" id="decoded-row"></div>
+    </div>
+
+    <div class="hint-box">
+      The permutation comes from a key: <code>key = pixel_x * pixel_y + int(venus.phase)</code><br>
+      You need the image (cv2) AND ephem to reconstruct it. Neither alone is enough.
+    </div>
+  </div>
+
+  <!-- How to find the cyan pixel -->
+  <div class="panel">
+    <div class="panel-title">// FINDING THE TEAL PIXEL</div>
+    <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
+      OpenCV stores images in <em style="color:var(--cyan)">BGR order</em> (Blue, Green, Red) — not RGB.
+      The cyan pixel has <code>B=255</code>, <code>G=255</code>, <code>R=0</code> exactly.
+      Decoy pixels look similar but have <code>R &gt; 0</code>.
+    </p>
+
+    <div class="code-block">
+      <span class="cm"># Find the exact cyan pixel</span><br>
+      <span class="var">mask</span> = (img[:,:,<span class="num">0</span>] == <span class="num">255</span>) &amp; (img[:,:,<span class="num">1</span>] == <span class="num">255</span>) &amp; (img[:,:,<span class="num">2</span>] == <span class="num">0</span>)<br>
+      <span class="var">ys</span>, <span class="var">xs</span> = np.<span class="fn">where</span>(mask)<br>
+      <span class="var">pixel_x</span> = <span class="fn">int</span>(np.<span class="fn">median</span>(xs))<br>
+      <span class="var">pixel_y</span> = <span class="fn">int</span>(np.<span class="fn">median</span>(ys))
+    </div>
+
+    <ul class="steps">
+      <li>Load the image with <code>cv2.imdecode</code> from the base64 string</li>
+      <li>Create a boolean mask: pixels where B==255 AND G==255 AND R==0</li>
+      <li>Use <code>np.where</code> to get the coordinates, then take the median (cross shape = multiple pixels)</li>
+      <li>These x, y values go into your key formula</li>
+    </ul>
+  </div>
+
+  <!-- Interactive decoder -->
+  <div class="panel">
+    <div class="panel-title">// TRANSPOSITION DECODER TOOL</div>
+    <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
+      Once you have your key and encoded word, use this tool to check your decode logic.
+      Enter the encoded word and key - it will show you what the decoded result would be.
+    </p>
+    <div class="tool-section">
+      <div class="tool-row">
+        <div style="flex:1; min-width:200px">
+          <div class="tool-label">ENCODED WORD</div>
+          <input class="tool-input" id="enc-word" placeholder="e.g. gnidoc" maxlength="20">
+        </div>
+        <div style="flex:1; min-width:200px">
+          <div class="tool-label">KEY (integer)</div>
+          <input class="tool-input" id="enc-key" placeholder="e.g. 84291" type="number">
+        </div>
+      </div>
+      <button class="tool-btn" onclick="runDecode()">DECODE SIGNAL</button>
+      <div class="tool-label" style="margin-top:16px">OUTPUT</div>
+      <div class="tool-output" id="tool-out">_</div>
+    </div>
+  </div>
+
+  <div class="footer">CASH SCAVENGER HUNT // HAIL MARY PROTOCOL // LVL 01 OF 03</div>
+</div>
+
+<script>
+// Generate stars
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 180; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const size = Math.random() < 0.8 ? 1 : 2;
+  s.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${Math.random()*100}%;
+    top:${Math.random()*100}%;
+    --dur:${2 + Math.random()*4}s;
+    --min-op:${0.1 + Math.random()*0.3};
+    animation-delay:${Math.random()*4}s;
+  `;
+  starsEl.appendChild(s);
+}
+
+// Cipher demo
+const word = 'CODING';
+const perm = [2, 0, 5, 1, 4, 3]; // example permutation
+
+function buildCipherDemo() {
+  // Original
+  const origRow = document.getElementById('original-row');
+  word.split('').forEach((c, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cipher-cell';
+    cell.innerHTML = `${c}<span class="idx">${i}</span>`;
+    origRow.appendChild(cell);
+  });
+
+  // Encoded
+  const encRow = document.getElementById('encoded-row');
+  const encoded = Array(word.length).fill('');
+  word.split('').forEach((c, i) => { encoded[perm[i]] = c; });
+  encoded.forEach((c, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cipher-cell highlight';
+    cell.innerHTML = `${c}<span class="idx">${i}</span>`;
+    encRow.appendChild(cell);
+  });
+
+  // Decoded (back to original)
+  const decRow = document.getElementById('decoded-row');
+  const decoded = Array(word.length).fill('');
+  encoded.forEach((c, i) => { decoded[i] = encoded[perm[i]]; });
+  decoded.forEach((c, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cipher-cell';
+    cell.innerHTML = `${c}<span class="idx">${i}</span>`;
+    decRow.appendChild(cell);
+  });
+}
+buildCipherDemo();
+
+// Seeded shuffle matching Python's random.Random(key).shuffle()
+function seededShuffle(arr, seed) {
+  // LCG matching Python random behavior closely enough for demo
+  let s = seed;
+  function rand() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0x100000000;
+  }
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function runDecode() {
+  const word = document.getElementById('enc-word').value.trim().toLowerCase();
+  const key  = parseInt(document.getElementById('enc-key').value);
+  const out  = document.getElementById('tool-out');
+
+  if (!word || isNaN(key)) {
+    out.innerHTML = '<span class="tool-error">ENTER BOTH FIELDS</span>';
+    return;
+  }
+
+  const n    = word.length;
+  const perm = seededShuffle([...Array(n).keys()], key);
+  const dec  = Array(n).fill('');
+  for (let i = 0; i < n; i++) dec[i] = word[perm[i]];
+  out.textContent = dec.join('').toUpperCase();
+}
+</script>
+</body>
+</html>
