@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CASH // LVL 2 - Ghost Stars</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #00ffff;
+    --dim-cyan: #00aaaa;
+    --bg: #020810;
+    --panel: #040f1a;
+    --border: #0a2a3a;
+    --text: #8bb8c8;
+    --bright: #d0eef8;
+    --warn: #ff6b35;
+    --purple: #b060ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  #stars {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+  }
+
+  .star {
+    position: absolute; background: white; border-radius: 50%;
+    animation: twinkle var(--dur) ease-in-out infinite;
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: var(--min-op); }
+    50% { opacity: 1; }
+  }
+
+  body::after {
+    content: '';
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+    pointer-events: none; z-index: 1;
+  }
+
+  .container {
+    position: relative; z-index: 2;
+    max-width: 860px; margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .header { text-align: center; margin-bottom: 48px; }
+
+  .transmission-badge {
+    display: inline-block; font-size: 11px; letter-spacing: 4px;
+    color: var(--purple); border: 1px solid var(--purple);
+    padding: 4px 16px; margin-bottom: 20px;
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 12px rgba(176,96,255,0.3); }
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 900; color: var(--purple);
+    letter-spacing: 2px;
+    text-shadow: 0 0 30px rgba(176,96,255,0.5);
+    line-height: 1.1;
+  }
+
+  .subtitle { font-size: 13px; letter-spacing: 3px; color: #7040aa; margin-top: 8px; }
+
+  .progress {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; margin-bottom: 48px;
+  }
+
+  .prog-step { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+  .prog-dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 700;
+    color: var(--text);
+  }
+
+  .prog-dot.done { border-color: #004444; color: #004444; background: #001a1a; }
+
+  .prog-dot.active {
+    border-color: var(--purple); color: var(--purple);
+    box-shadow: 0 0 16px rgba(176,96,255,0.4);
+    background: rgba(176,96,255,0.05);
+  }
+
+  .prog-label { font-size: 9px; letter-spacing: 2px; color: #7040aa; }
+  .prog-line { width: 60px; height: 1px; background: var(--border); margin-bottom: 20px; }
+
+  .narrative {
+    background: var(--panel); border: 1px solid var(--border);
+    border-left: 3px solid var(--purple);
+    padding: 24px 28px; margin-bottom: 32px;
+    font-size: 14px; line-height: 1.9; color: var(--bright); position: relative;
+  }
+
+  .narrative::before {
+    content: '// TRANSMISSION LOG';
+    position: absolute; top: -10px; left: 16px;
+    background: var(--panel); padding: 0 8px;
+    font-size: 10px; letter-spacing: 3px; color: var(--purple);
+  }
+
+  .narrative em { color: var(--purple); font-style: normal; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 28px; margin-bottom: 24px; position: relative;
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700;
+    letter-spacing: 3px; color: var(--purple); margin-bottom: 20px;
+    padding-bottom: 12px; border-bottom: 1px solid var(--border);
+  }
+
+  /* BGR explainer */
+  .bgr-demo {
+    display: flex; gap: 16px; flex-wrap: wrap; margin: 20px 0;
+  }
+
+  .channel-box {
+    flex: 1; min-width: 140px;
+    background: #010a12; border: 1px solid var(--border);
+    padding: 16px; text-align: center;
+  }
+
+  .channel-swatch {
+    width: 100%; height: 48px; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif; font-size: 11px;
+    letter-spacing: 2px;
+  }
+
+  .channel-name { font-size: 11px; letter-spacing: 2px; margin-bottom: 4px; }
+  .channel-val { font-size: 22px; font-family: 'Orbitron', sans-serif; font-weight: 700; }
+  .channel-note { font-size: 10px; color: var(--dim-cyan); margin-top: 6px; line-height: 1.5; }
+
+  /* Pixel cluster demo */
+  .cluster-grid {
+    display: inline-grid;
+    grid-template-columns: repeat(9, 32px);
+    grid-template-rows: repeat(9, 32px);
+    gap: 2px; margin: 16px auto; display: block; width: fit-content;
+  }
+
+  .px {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-family: 'Share Tech Mono', monospace;
+  }
+
+  .code-block {
+    background: #010a12; border: 1px solid var(--border);
+    border-left: 3px solid #7040aa;
+    padding: 16px 20px; font-size: 13px; line-height: 1.8;
+    margin: 16px 0; overflow-x: auto;
+  }
+
+  .code-block .kw { color: #569cd6; }
+  .code-block .fn { color: #dcdcaa; }
+  .code-block .cm { color: #4a6a4a; }
+  .code-block .num { color: #b5cea8; }
+  .code-block .var { color: #9cdcfe; }
+
+  .hint-box {
+    border: 1px solid var(--warn);
+    padding: 16px 20px; margin: 16px 0;
+    font-size: 13px; color: var(--warn); line-height: 1.7;
+    position: relative;
+  }
+
+  .hint-box::before {
+    content: '! HINT'; position: absolute; top: -9px; left: 12px;
+    background: var(--panel); padding: 0 6px;
+    font-size: 10px; letter-spacing: 3px;
+  }
+
+  .steps { list-style: none; padding: 0; counter-reset: step-counter; }
+  .steps li {
+    padding: 10px 0 10px 32px; border-bottom: 1px solid var(--border);
+    font-size: 13px; line-height: 1.7; position: relative; color: var(--bright);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step-counter); counter-increment: step-counter;
+    position: absolute; left: 0; top: 10px;
+    font-family: 'Orbitron', sans-serif; font-size: 11px;
+    color: var(--purple); background: rgba(176,96,255,0.08);
+    border: 1px solid #7040aa; width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center; border-radius: 2px;
+  }
+
+  code {
+    background: #010a12; border: 1px solid var(--border);
+    padding: 2px 6px; font-family: 'Share Tech Mono', monospace;
+    color: var(--purple); font-size: 12px;
+  }
+
+  /* Key calculator tool */
+  .tool-label { font-size: 11px; letter-spacing: 2px; color: #7040aa; margin-bottom: 6px; }
+
+  .tool-input {
+    width: 100%; background: #010a12; border: 1px solid var(--border);
+    color: var(--bright); font-family: 'Share Tech Mono', monospace;
+    font-size: 14px; padding: 10px 14px; outline: none;
+    transition: border-color 0.2s; margin-bottom: 12px;
+  }
+
+  .tool-input:focus { border-color: var(--purple); }
+
+  .tool-btn {
+    background: transparent; border: 1px solid var(--purple);
+    color: var(--purple); font-family: 'Orbitron', sans-serif;
+    font-size: 11px; letter-spacing: 2px;
+    padding: 10px 24px; cursor: pointer; transition: all 0.2s;
+  }
+
+  .tool-btn:hover { background: rgba(176,96,255,0.1); box-shadow: 0 0 12px rgba(176,96,255,0.3); }
+
+  .tool-output {
+    background: #010a12; border: 1px solid var(--border);
+    padding: 12px 16px; font-size: 16px;
+    font-family: 'Orbitron', sans-serif; color: var(--purple);
+    min-height: 48px; text-align: center; margin-top: 8px;
+  }
+
+  .planet-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin: 16px 0;
+  }
+
+  .planet-card {
+    background: #010a12; border: 1px solid var(--border);
+    padding: 12px; text-align: center;
+  }
+
+  .planet-name {
+    font-family: 'Orbitron', sans-serif; font-size: 10px;
+    letter-spacing: 2px; color: var(--purple); margin-bottom: 8px;
+  }
+
+  .planet-input {
+    width: 100%; background: #020e18; border: 1px solid var(--border);
+    color: var(--bright); font-family: 'Share Tech Mono', monospace;
+    font-size: 13px; padding: 6px; outline: none; text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .planet-sublabel { font-size: 9px; letter-spacing: 1px; color: var(--dim-cyan); }
+
+  .footer {
+    text-align: center; font-size: 11px; letter-spacing: 3px;
+    color: #1a3a4a; margin-top: 60px; padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<div id="stars"></div>
+
+<div class="container">
+
+  <div class="header">
+    <div class="transmission-badge">SIGNAL DETECTED</div>
+    <h1>GHOST STARS</h1>
+    <div class="subtitle">CELESTIAL CHASE // LEVEL 02</div>
+  </div>
+
+  <div class="progress">
+    <div class="prog-step">
+      <div class="prog-dot done">01</div>
+      <div class="prog-label">BEACON</div>
+    </div>
+    <div class="prog-line"></div>
+    <div class="prog-step">
+      <div class="prog-dot active">02</div>
+      <div class="prog-label">GHOST</div>
+    </div>
+    <div class="prog-line"></div>
+    <div class="prog-step">
+      <div class="prog-dot">03</div>
+      <div class="prog-label">CHART</div>
+    </div>
+  </div>
+
+  <div class="narrative">
+    The first signal decoded. But it wasn't complete.<br><br>
+    Four more transmissions — hidden in the nebula. Four planets left a mark, each one
+    camouflaged as a <em>near-white pixel</em>. They look identical to noise.
+    But they are not noise. Their color holds a secret encoded in distance and position.<br><br>
+    The Astrophage is spreading. You don't have long. <em>Find the ghost stars.</em>
+  </div>
+
+  <!-- BGR explainer -->
+  <div class="panel">
+    <div class="panel-title">// CV2 STORES IMAGES AS BGR - NOT RGB</div>
+    <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
+      OpenCV uses <em style="color:var(--purple)">BGR channel order</em> — Blue first, then Green, then Red.
+      This catches almost everyone. When you do <code>img[y, x]</code>, you get <code>[B, G, R]</code>.
+    </p>
+
+    <div class="bgr-demo">
+      <div class="channel-box">
+        <div class="channel-swatch" style="background:#00008f; color:white">BLUE</div>
+        <div class="channel-name">img[y,x,<span style="color:#6688ff">0</span>]</div>
+        <div class="channel-val" style="color:#6688ff">B</div>
+        <div class="channel-note">This is your planet distance value.<br>Read this channel.</div>
+      </div>
+      <div class="channel-box">
+        <div class="channel-swatch" style="background:#008f00; color:white">GREEN</div>
+        <div class="channel-name">img[y,x,<span style="color:#66dd66">1</span>]</div>
+        <div class="channel-val" style="color:#66dd66">G</div>
+        <div class="channel-note">Always 255 for planet markers.<br>Use to find them.</div>
+      </div>
+      <div class="channel-box">
+        <div class="channel-swatch" style="background:#8f0000; color:white">RED</div>
+        <div class="channel-name">img[y,x,<span style="color:#ff6666">2</span>]</div>
+        <div class="channel-val" style="color:#ff6666">R</div>
+        <div class="channel-note">Always 255 for planet markers.<br>Use to find them.</div>
+      </div>
+    </div>
+
+    <div class="hint-box">
+      Planet markers: <code>G==255</code> AND <code>R==255</code> AND <code>B != 255</code><br>
+      Pure white decoys: <code>B==255</code> AND <code>G==255</code> AND <code>R==255</code><br>
+      So filter: <code>(img[:,:,1]==255) &amp; (img[:,:,2]==255) &amp; (img[:,:,0]!=255)</code>
+    </div>
+  </div>
+
+  <!-- Cluster finding -->
+  <div class="panel">
+    <div class="panel-title">// FINDING CLUSTER CENTERS</div>
+    <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
+      Each planet marker is a <em style="color:var(--purple)">3x3 patch</em> of pixels, not a single pixel.
+      You need to group the matching pixels into 4 clusters and find each cluster's center.
+    </p>
+
+    <div class="code-block">
+      <span class="kw">from</span> scipy <span class="kw">import</span> ndimage<br><br>
+      <span class="cm"># Find all planet marker pixels</span><br>
+      <span class="var">mask</span> = (img[:,:,<span class="num">1</span>]==<span class="num">255</span>) &amp; (img[:,:,<span class="num">2</span>]==<span class="num">255</span>) &amp; (img[:,:,<span class="num">0</span>]!=<span class="num">255</span>)<br><br>
+      <span class="cm"># Label connected groups of pixels</span><br>
+      <span class="var">labeled</span>, <span class="var">n</span> = ndimage.<span class="fn">label</span>(mask)<br><br>
+      <span class="cm"># Get center and blue channel of each cluster</span><br>
+      <span class="var">clusters</span> = []<br>
+      <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="num">1</span>, n+<span class="num">1</span>):<br>
+      &nbsp;&nbsp;<span class="var">ys</span>, <span class="var">xs</span> = np.<span class="fn">where</span>(labeled == i)<br>
+      &nbsp;&nbsp;<span class="var">cy</span>, <span class="var">cx</span> = <span class="fn">int</span>(np.<span class="fn">median</span>(ys)), <span class="fn">int</span>(np.<span class="fn">median</span>(xs))<br>
+      &nbsp;&nbsp;<span class="var">blue</span> = <span class="fn">int</span>(img[cy, cx, <span class="num">0</span>])<br>
+      &nbsp;&nbsp;clusters.<span class="fn">append</span>((cx, cy, blue))
+    </div>
+
+    <ul class="steps">
+      <li>Filter pixels with the mask above — this gives you all marker pixels</li>
+      <li>Use <code>scipy.ndimage.label</code> to group connected pixels into clusters</li>
+      <li>For each cluster, take the median x and y as the center</li>
+      <li>Read the blue channel at that center pixel</li>
+      <li>Match each cluster to a planet using the position formula</li>
+    </ul>
+  </div>
+
+  <!-- Key calculator -->
+  <div class="panel">
+    <div class="panel-title">// KEY CALCULATOR</div>
+    <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
+      The key = sum of (<code>blue_channel + int(altitude_degrees)</code>) for each planet in order:
+      Mars, Jupiter, Saturn, Mercury.
+      Enter your values below to compute it.
+    </p>
+
+    <div class="planet-row">
+      <div class="planet-card">
+        <div class="planet-name">MARS</div>
+        <input class="planet-input" id="p0-blue" placeholder="blue" type="number">
+        <div class="planet-sublabel">blue channel</div>
+        <input class="planet-input" id="p0-alt" placeholder="alt°" type="number">
+        <div class="planet-sublabel">altitude deg</div>
+      </div>
+      <div class="planet-card">
+        <div class="planet-name">JUPITER</div>
+        <input class="planet-input" id="p1-blue" placeholder="blue" type="number">
+        <div class="planet-sublabel">blue channel</div>
+        <input class="planet-input" id="p1-alt" placeholder="alt°" type="number">
+        <div class="planet-sublabel">altitude deg</div>
+      </div>
+      <div class="planet-card">
+        <div class="planet-name">SATURN</div>
+        <input class="planet-input" id="p2-blue" placeholder="blue" type="number">
+        <div class="planet-sublabel">blue channel</div>
+        <input class="planet-input" id="p2-alt" placeholder="alt°" type="number">
+        <div class="planet-sublabel">altitude deg</div>
+      </div>
+      <div class="planet-card">
+        <div class="planet-name">MERCURY</div>
+        <input class="planet-input" id="p3-blue" placeholder="blue" type="number">
+        <div class="planet-sublabel">blue channel</div>
+        <input class="planet-input" id="p3-alt" placeholder="alt°" type="number">
+        <div class="planet-sublabel">altitude deg</div>
+      </div>
+    </div>
+
+    <button class="tool-btn" onclick="calcKey()">COMPUTE KEY</button>
+    <div class="tool-label" style="margin-top:16px">COMPUTED KEY</div>
+    <div class="tool-output" id="key-out">_</div>
+  </div>
+
+  <div class="footer">CASH SCAVENGER HUNT // HAIL MARY PROTOCOL // LVL 02 OF 03</div>
+</div>
+
+<script>
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 180; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const size = Math.random() < 0.8 ? 1 : 2;
+  s.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--dur:${2+Math.random()*4}s;--min-op:${0.1+Math.random()*0.3};animation-delay:${Math.random()*4}s;`;
+  starsEl.appendChild(s);
+}
+
+function calcKey() {
+  let key = 0;
+  for (let i = 0; i < 4; i++) {
+    const blue = parseInt(document.getElementById(`p${i}-blue`).value) || 0;
+    const alt  = parseInt(document.getElementById(`p${i}-alt`).value)  || 0;
+    key += blue + alt;
+  }
+  document.getElementById('key-out').textContent = key;
+}
+</script>
+</body>
+</html>
