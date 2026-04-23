@@ -253,13 +253,16 @@ def generate_notebook_lvl1(final_challenge_code=1, final_solution_flag=False):
     alt_deg = int(math.degrees(float(venus.alt)))
     phase   = int(venus.phase)
 
-    # Key combines az, alt, and phase - needs both cv2 (pixel) and ephem (phase)
-    key  = az_deg * alt_deg + phase
+    # Compute pixel position first so encode and decode use the same key
+    W, H = 400, 400
+    vx, vy = az_alt_to_xy(az_deg, alt_deg, W, H)
+
+    # Key = pixel_x * pixel_y + phase - matches exactly what students recover from image
+    key  = vx * vy + phase
     perm = make_perm(len(final_solution_word), key)
     encoded_word = transpose_encode(final_solution_word, perm)
 
     # --- Image generation - unique per user ---
-    W, H = 400, 400
     rng = np.random.RandomState(final_challenge_code * 17 + 3)
 
     # Unique background: vary star count, brightness, subtle tint per user
@@ -399,8 +402,8 @@ random.Random(key).shuffle(perm)
 
 def transpose_decode(encoded, perm):
     decoded = [''] * len(encoded)
-    for i, c in enumerate(encoded):
-        decoded[perm[i]] = c
+    for i in range(len(encoded)):
+        decoded[i] = encoded[perm[i]]
     return ''.join(decoded)
 
 answer = transpose_decode(encoded, perm)
@@ -605,7 +608,7 @@ perm = list(range(len(encoded)))
 random.Random(key).shuffle(perm)
 
 def transpose_decode(encoded, perm):
-    pass  # decoded[perm[i]] = encoded[i] ... think about which direction
+    pass  # decoded[i] = encoded[perm[i]]
 
 answer = transpose_decode(encoded, perm)
 print(answer)
@@ -667,8 +670,8 @@ random.Random(key).shuffle(perm)
 
 def transpose_decode(encoded, perm):
     decoded = [''] * len(encoded)
-    for i, c in enumerate(encoded):
-        decoded[perm[i]] = c
+    for i in range(len(encoded)):
+        decoded[i] = encoded[perm[i]]
     return ''.join(decoded)
 
 answer = transpose_decode(encoded, perm)
