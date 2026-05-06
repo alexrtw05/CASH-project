@@ -25,17 +25,17 @@
 \setlength{\columnsep}{0.25in}
 
 % ====== Title & Authors ======
-\title{\textbf{CASH Project Challenge: \textit{[Your Challenge Name]}}}
+\title{\textbf{CASH Project Challenge: \textit{Celestial Chase}}}
 
 \author{
     \begin{tabular}{c}
-        \textbf{Alice Example} \\
-        \texttt{alice.example@ethz.ch}
+        \textbf{Alexander Aoun} \\
+        \texttt{aalexane@ethz.ch}
     \end{tabular}
     \and
     \begin{tabular}{c}
-        \textbf{Bob Example} \\
-        \texttt{bob.example@ethz.ch}
+        \textbf{Haolei Zhang} \\
+        \texttt{zhanghao@ethz.ch}
     \end{tabular}
 }
 
@@ -47,122 +47,87 @@
 % ====== 1. Introduction and Motivation ======
 \section{Introduction and Motivation}
 
-\textbf{Discuss:}
-\begin{itemize}
-    \item The overarching motivation behind your challenge — what concept you want to focus on, and what the overall theme of the challenge is (e.g., writing and presentation style).
-    \item Why this challenge is relevant to the CASH course and what tools or concepts participants are expected to learn about.
-\end{itemize}
+\textit{Celestial Chase} is a three-level scavenger-hunt challenge framed around a lone astronaut decoding messages hidden in the night sky. The narrative is loosely inspired by the movie \textit{Project Hail Mary}: the player has woken from cryo-sleep, light-years from Earth, and the only way home is to read instructions encoded into real astronomical phenomena.
+
+The goal is to force students to combine three distinct skill domains, computer vision, astronomy and cryptography in one. Each level requires the student to extract structured information from an embedded image using \texttt{cv2}, compute a real celestial quantity using the \texttt{ephem} library and combine both numbers into a cipher key. The idea is that neither pixel inspection nor astronomy alone is sufficient, which discourages shortcutting.
 
 % ====== 2. Technical Background ======
 \section{Technical Background}
 
-\textbf{Discuss:}
-\begin{itemize}
-    \item The theoretical and technical principles underlying the challenge (e.g., encryption, computer vision, general computer science tools, etc.).
-    \item Tools or libraries used to develop the challenge.
-    \item Key algorithms or concepts participants will need to understand.
-    \item Expected technical skills developed through the challenge.
-\end{itemize}
+The challenge rests on three pillars. First, \textbf{ephemeris computation} via the \texttt{ephem} Python library~\cite{ephem}, which provides positions of solar-system bodies and named bright stars from any observer location and date. Students compute Venus's illuminated phase percentage, planetary altitudes above the local horizon, and named-star altitudes, all evaluated for the fixed observation point of Zurich (lat \texttt{47.3769}, lon \texttt{8.5417}) on the summer solstice 2025.
+
+Second, \textbf{image processing} via OpenCV (\texttt{cv2})~\cite{opencv}. Each notebook embeds a base64-encoded PNG that must be decoded and inspected at the pixel level. Students filter pixels by exact BGR color values to distinguish meaningful signal pixels and in Levels 2 and 3 group pixels into clusters via connected-component labelling.
+
+Third, the \textbf{cipher cascade}: a per-letter Caesar shift in Level 1, an XOR stream cipher with hex output in Level 2, and a per-byte combined-key XOR cipher in Level 3. Hex output (used in Levels 2 and 3) is deliberate: it removes any letter-frequency or anagram cue that would let a student guess a short word from its ciphertext.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{pipeline.png}
+    \caption{Decoding pipeline for Level 1 (\textit{The Teal Beacon}).}
+    \label{fig:pipeline}
+\end{figure}
 
 % ====== 3. Challenge Structure ======
 \section{Challenge Structure}
 
-\textbf{Overview:}
-\begin{itemize}
-    \item The challenge contains three levels of increasing complexity.
-    \item Briefly discuss the idea behind each level, how they differ, and the chosen difficulty level.
-\end{itemize}
+The challenge progresses from a single signal source to a combinatorial sorting problem, with each level raising the complexity of both the vision and astronomy components and the cipher itself. Per-user variation comes from the secret word, image background and decoy distribution. The astronomical observation is fixed across users so every notebook computes against the same standpoint, but each student's encoded signal is unique. 
 
 % ----- 3.1 Level 1 -----
-\subsection{Level 1: [Title or Focus]}
-\textbf{Discuss:}
-\begin{itemize}
-    \item The learning objective and conceptual focus of Level 1 — what is Level 1 about?
-    \item How dynamic generation ensures unique notebooks (e.g., different text, data, or parameters).
-    \item How the master solution solves this variant.
-\end{itemize}
+\subsection{Level 1: The Teal Beacon}
+
+A single planet, Venus, is marked as a 5-pixel cyan cross (BGR \texttt{[255,255,0]}) at its computed sky position in a $400 \times 400$ starfield. Students locate the cyan pixel, sum the red-channel values of the decoy near-cyan pixels and compute Venus's phase with \texttt{ephem}. The base shift is $s_0 = (x + y + \text{phase} + \text{decoy\_sum}) \bmod 26$, and the shift used at letter position $i$ is $(s_0 + 7i) \bmod 26$. The position-dependent term defeats the obvious 26-shift brute force: trying all base shifts on the whole word will not recover the plaintext unless the formula is used.
+
+Per-user variation: the background star count, brightness tint, and decoy positions are all seeded by \texttt{final\_challenge\_code}, while the secret word is drawn from a fixed pool via \texttt{random.seed(code+1)}. The master solution masks the cyan pixel, builds a second mask for the decoy pixels and sums their red channels, computes the phase and reverses the per-letter Caesar.
 
 % ----- 3.2 Level 2 -----
-\subsection{Level 2: [Title or Focus]}
-\textbf{Discuss:}
-\begin{itemize}
-    \item How this level extends or modifies Level 1 — what is new, and what can be repurposed.
-    \item The learning objective and conceptual focus of Level 2 — what is Level 2 about?
-    \item How dynamic generation ensures unique notebooks (e.g., different text, data, or parameters).
-    \item How the master solution solves this variant.
-\end{itemize}
+\subsection{Level 2: Ghost Stars}
+
+Level 2 generalises Level 1 from one body to four: Mars, Jupiter, Saturn, and Mercury are each placed as a $3 \times 3$ near-white patch on a $600 \times 600$ nebula background. Each marker's blue channel encodes that planet's earth-distance via $\text{blue} = \lfloor d_{\oplus} \cdot 1000 \rfloor \bmod 255$. Pure-white decoy clusters ($B = 255$) are added separately; the student must both filter them out (to find the real markers) and count them (the per-image fingerprint, \texttt{decoy\_count}). The cipher upgrades from Caesar to an XOR stream with hex output: each plaintext byte is XOR'd with $(b_0 + 23i) \bmod 256$, where the base byte is $b_0 = (\text{planet\_sum} + \text{decoy\_count}) \bmod 256$ and $\text{planet\_sum}$ aggregates blue channel and altitude across all four planets.
+
+The new conceptual hurdles are pairing each detected cluster to its planet via the position formula and byte-level cipher mechanics (hex parsing, bitwise XOR, character codes). The image generation pipeline is reseeded per user. The master solution uses \texttt{scipy.ndimage.label} for cluster detection and a Manhattan-distance match.
 
 % ----- 3.3 Level 3 -----
-\subsection{Level 3: [Title or Focus]}
-\textbf{Discuss:}
-\begin{itemize}
-    \item How this level extends or modifies Level 2 — what is new, and what can be repurposed.
-    \item The learning objective and conceptual focus of Level 3 — what is Level 3 about?
-    \item How dynamic generation ensures unique notebooks (e.g., different text, data, or parameters).
-    \item How the master solution solves this variant.
-\end{itemize}
+\subsection{Level 3: The Star Chart}
 
-% ====== Example Figure ======
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=0.9\linewidth]{example-figure.png}
-    \caption{Example visualization of the generated challenge, a used tool, or data visualization. 
-    Replace with your own plot or schematic illustrating the problem setup.}
-    \label{fig:example}
-\end{figure}
+Level 3 abandons planets for the fifteen brightest named stars (Sirius, Canopus, Vega, \ldots, Deneb), all rendered at their actual sky positions on an $800 \times 800$ chart. The student must rank all fifteen stars by altitude, take the top $N$ (where $N$ is the secret word length), and read the red channel of each top-$N$ star's pixel. Real message stars satisfy $R \geq 28$; dim-red decoy pixels with $R \in [1, 27]$ are scattered as noise.
 
-% ====== Example Table ======
-\begin{table}[h]
+The cipher is again XOR-hex, but the key is now \emph{per-byte and combined}: the key byte at position $i$ is $(\text{red}_i + \text{altitude}_i) \bmod 256$ where $\text{red}_i$ comes from the image and $\text{altitude}_i$ comes from \texttt{ephem}. This couples vision and astronomy at the byte level: a single ranking error or pixel misread corrupts only that one byte, but corrupts it irrecoverably. The fifteen-star altitude ordering on a fixed date has no analytical shortcut. Per-user red channels are derived deterministically from \texttt{hashlib.md5(star\_name + code)}, ensuring reproducibility across Python sessions.
+
+\begin{table}[t]
     \centering
-    \caption{Overview of challenge levels, intended tools, and data used.}
+    \caption{Overview of the three levels. Each level requires both \texttt{cv2} image inspection and \texttt{ephem} astronomy.}
     \label{tab:levels}
     \begin{adjustbox}{max width=\linewidth}
     \begin{tabular}{@{}llll@{}}
         \toprule
-        \textbf{Level} & \textbf{Main Focus} & \textbf{Tools} & \textbf{Data/Inputs} \\
+        \textbf{Level} & \textbf{Cipher} & \textbf{Vision task} & \textbf{Bodies} \\
         \midrule
-        1 & Key Idea 1 & Tool1, Tool2, Matplotlib & No Additional Data \\
-        2 & Key Idea 2 & Library1, Tool3 & Dynamic Data from Source X \\
-        3 & Key Idea 3 & -- & Dynamic Data from Source Y \\
+        1 & Per-letter Caesar      & 1 cyan + decoy sum    & Venus \\
+        2 & XOR stream (hex)       & Cluster + match       & 4 planets \\
+        3 & XOR per-byte (hex)     & Rank + read $N$ stars & 15 stars \\
         \bottomrule
     \end{tabular}
     \end{adjustbox}
 \end{table}
 
-% ====== 4. LLM Robustness Considerations ======
-\section{Optional: LLM Robustness Considerations}
-
-\textbf{Discuss:}
-\begin{itemize}
-    \item How your challenge avoids trivial solutions from large language models (LLMs).
-\end{itemize}
 
 % ====== 5. Discussion and Conclusion ======
 \section{Discussion and Conclusion}
 
-\textbf{Discuss:}
-\begin{itemize}
-    \item What was the challenge about? Main theme and level design.
-    \item What tools and challenges students are expected to encounter.
-    \item General conclusions on encountered challenges or discussion of possible shortcut solutions.
-    \item Future improvements, potential extensions, or new ideas for variation.
-\end{itemize}
+\textit{Celestial Chase} couples astronomy with computer vision under fun narrative. Across the three levels, students progress from inspecting a single pixel to clustering, matching, and finally ranking, while the cipher progresses from a guessable Caesar variant to byte-level XOR with a per-position key. 
 
-% ====== Appendix (Optional) ======
+% ====== Appendix ======
 \appendix
 \section{Reproducibility and Setup}
 
-\textbf{Include:}
-\begin{itemize}
-    \item What tools and data were used for development — is the development and challenge generation process reproducible?
-    \item Notes on runtime, determinism, and reproducibility.
-\end{itemize}
+For the challenge the libraries \texttt{ephem}, \texttt{nbformat}, \texttt{opencv-python} and \texttt{numpy} are needed. All solutions are 100\% deterministic and should be reproducible.
 
 % ====== References ======
 \begin{thebibliography}{9}
 \bibitem{ethcash} ETH Zurich. \textit{CASH Course Website (HS25)}. \url{https://disco.ethz.ch/courses/hs25/cash/}
-\bibitem{pytorch} PyTorch. \textit{PyTorch Documentation}. \url{https://pytorch.org/docs/stable/index.html}
-\bibitem{numpy} NumPy Developers. \textit{NumPy User Guide}. \url{https://numpy.org/doc/stable/user/}
+\bibitem{ephem} B. C. Rhodes. \textit{PyEphem: Astronomical Ephemeris for Python}. \url{https://rhodesmill.org/pyephem/}
+\bibitem{opencv} G. Bradski. \textit{The OpenCV Library}. Dr. Dobb's Journal of Software Tools, 2000. \url{https://opencv.org}
+\bibitem{numpy} C. R. Harris et al. \textit{Array Programming with NumPy}. Nature 585, 357--362, 2020. \url{https://numpy.org}
 \end{thebibliography}
 
 \end{document}
