@@ -382,13 +382,58 @@
     </ul>
   </div>
 
-  <!-- Key calculator -->
+  <!-- Decoy counter explainer -->
   <div class="panel">
-    <div class="panel-title">// KEY CALCULATOR</div>
+    <div class="panel-title">// COUNT THE PURE-WHITE DECOYS</div>
     <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
-      The key = sum of (<code>blue_channel + int(altitude_degrees)</code>) for each planet in order:
-      Mars, Jupiter, Saturn, Mercury.
-      Enter your values below to compute it.
+      The nebula also contains <em style="color:var(--purple)">pure-white</em> 3x3 patches — interference clusters left
+      by cosmic rays. They are NOT planets, but their count is part of your key. Use connected-component
+      labelling to count distinct clusters of pure-white pixels.
+    </p>
+
+    <div class="code-block">
+      <span class="cm"># Pure-white pixels: B==255 AND G==255 AND R==255</span><br>
+      <span class="var">pure_white</span> = (img[:,:,<span class="num">0</span>]==<span class="num">255</span>) &amp; (img[:,:,<span class="num">1</span>]==<span class="num">255</span>) &amp; (img[:,:,<span class="num">2</span>]==<span class="num">255</span>)<br>
+      <span class="var">_</span>, <span class="var">decoy_count</span> = ndimage.<span class="fn">label</span>(pure_white)
+    </div>
+
+    <div class="hint-box">
+      <code>decoy_count</code> is a small integer (typically 6-13). It's the per-image fingerprint that makes
+      your encoded signal different from another student's, even if you both got the same secret word.
+    </div>
+  </div>
+
+  <!-- XOR-hex explainer -->
+  <div class="panel">
+    <div class="panel-title">// WHAT IS XOR-HEX</div>
+    <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
+      Your encoded signal is a <em style="color:var(--purple)">hex string</em>: 2 characters per byte
+      (e.g. <code>2d0a18fac4a6</code> = 6 bytes). Each plaintext byte was XOR'd with a key byte. Reverse the
+      XOR to recover the message.
+    </p>
+
+    <div class="code-block">
+      <span class="cm"># For each byte at position i in the hex string:</span><br>
+      <span class="var">base_key</span> = (<span class="var">planet_sum</span> + <span class="var">decoy_count</span>) &amp; <span class="num">0xFF</span><br>
+      <span class="var">answer</span> = <span class="st">""</span><br>
+      <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="num">0</span>, <span class="fn">len</span>(encoded), <span class="num">2</span>):<br>
+      &nbsp;&nbsp;<span class="var">cipher_byte</span> = <span class="fn">int</span>(encoded[i:i+<span class="num">2</span>], <span class="num">16</span>)<br>
+      &nbsp;&nbsp;<span class="var">key_byte</span>    = (base_key + (i // <span class="num">2</span>) * <span class="num">23</span>) &amp; <span class="num">0xFF</span><br>
+      &nbsp;&nbsp;<span class="var">answer</span>     += <span class="fn">chr</span>(cipher_byte ^ key_byte)
+    </div>
+
+    <div class="hint-box">
+      <code>^</code> is XOR in Python. <code>&amp; 0xFF</code> keeps a value in the byte range 0-255.
+      Encoding and decoding are the same operation - XOR is its own inverse.
+    </div>
+  </div>
+
+  <!-- Key + decoder tool -->
+  <div class="panel">
+    <div class="panel-title">// KEY CALCULATOR &amp; XOR DECODER</div>
+    <p style="font-size:13px; line-height:1.8; margin-bottom:16px; color:var(--bright)">
+      Enter blue channel and altitude for each planet (in order: Mars, Jupiter, Saturn, Mercury), plus
+      <code>decoy_count</code>. Then paste your encoded hex string and hit decode.
     </p>
 
     <div class="planet-row">
@@ -422,9 +467,25 @@
       </div>
     </div>
 
-    <button class="tool-btn" onclick="calcKey()">COMPUTE KEY</button>
-    <div class="tool-label" style="margin-top:16px">COMPUTED KEY</div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px">
+      <div style="flex:1; min-width:160px">
+        <div class="tool-label">DECOY COUNT</div>
+        <input class="planet-input" id="decoy-count" placeholder="e.g. 9" type="number" style="width:100%; box-sizing:border-box">
+      </div>
+      <div style="flex:2; min-width:240px">
+        <div class="tool-label">ENCODED HEX</div>
+        <input class="planet-input" id="hex-in" placeholder="e.g. 2d0a18fac4a6" style="width:100%; box-sizing:border-box; font-family:'Share Tech Mono',monospace">
+      </div>
+    </div>
+
+    <button class="tool-btn" style="margin-top:16px" onclick="calcKey()">COMPUTE KEY</button>
+    <button class="tool-btn" style="margin-top:16px; margin-left:8px" onclick="runDecode()">DECODE HEX</button>
+
+    <div class="tool-label" style="margin-top:16px">BASE KEY (BYTE)</div>
     <div class="tool-output" id="key-out">_</div>
+
+    <div class="tool-label" style="margin-top:16px">DECODED MESSAGE</div>
+    <div class="tool-output" id="dec-out">_</div>
   </div>
 
   <div class="footer">CASH SCAVENGER HUNT // HAIL MARY PROTOCOL // LVL 02 OF 03</div>
@@ -440,14 +501,40 @@ for (let i = 0; i < 180; i++) {
   starsEl.appendChild(s);
 }
 
-function calcKey() {
-  let key = 0;
+function planetSum() {
+  let sum = 0;
   for (let i = 0; i < 4; i++) {
     const blue = parseInt(document.getElementById(`p${i}-blue`).value) || 0;
     const alt  = parseInt(document.getElementById(`p${i}-alt`).value)  || 0;
-    key += blue + alt;
+    sum += blue + alt;
   }
-  document.getElementById('key-out').textContent = key;
+  return sum;
+}
+
+function baseKey() {
+  const dc = parseInt(document.getElementById('decoy-count').value) || 0;
+  return (planetSum() + dc) & 0xFF;
+}
+
+function calcKey() {
+  document.getElementById('key-out').textContent = baseKey();
+}
+
+function runDecode() {
+  const out = document.getElementById('dec-out');
+  const hex = (document.getElementById('hex-in').value || '').trim().toLowerCase();
+  if (!hex || hex.length % 2 !== 0 || !/^[0-9a-f]+$/.test(hex)) {
+    out.innerHTML = '<span class="tool-error">ENTER VALID HEX (EVEN LENGTH)</span>';
+    return;
+  }
+  const base = baseKey();
+  let answer = '';
+  for (let i = 0; i < hex.length; i += 2) {
+    const cipher = parseInt(hex.substr(i, 2), 16);
+    const k      = (base + (i / 2) * 23) & 0xFF;
+    answer      += String.fromCharCode(cipher ^ k);
+  }
+  out.textContent = answer.toUpperCase();
 }
 </script>
 </body>

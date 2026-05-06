@@ -258,14 +258,9 @@ def generate_notebook_lvl1(final_challenge_code=1, final_solution_flag=False):
     alt_deg = int(math.degrees(float(venus.alt)))
     phase   = int(venus.phase)
 
-    # Compute pixel position first so encode and decode use the same key
+    # Compute pixel position - encoding happens after image is built
     W, H = 400, 400
     vx, vy = az_alt_to_xy(az_deg, alt_deg, W, H)
-
-    # Key = pixel_x * pixel_y + phase - matches exactly what students recover from image
-    key  = vx * vy + phase
-    perm = make_perm(len(final_solution_word), key)
-    encoded_word = transpose_encode(final_solution_word, perm)
 
     # --- Image generation - unique per user ---
     rng = np.random.RandomState(final_challenge_code * 17 + 3)
@@ -296,6 +291,24 @@ def generate_notebook_lvl1(final_challenge_code=1, final_solution_flag=False):
         if 0 <= nx < W and 0 <= ny < H:
             img[ny, nx] = [255, 255, 0]  # BGR cyan - R must be exactly 0
 
+    # Compute decoy_sum: sum of red-channel values of the decoy near-cyan pixels.
+    # Decoys: B=255, G=255, R in [1,30]; real Venus has R=0 so it's excluded by R > 0.
+    # The < 50 upper bound gives students a tiny safety margin.
+    decoy_mask = (img[:,:,0] == 255) & (img[:,:,1] == 255) & (img[:,:,2] > 0) & (img[:,:,2] < 50)
+    decoy_sum  = int(img[decoy_mask, 2].sum())
+
+    # Per-letter Caesar cipher. Each letter at position i is shifted by
+    #   shift_i = (pixel_x + pixel_y + venus.phase + decoy_sum + i*7) % 26
+    # decoy_sum is per-image (different for every student), so two students with
+    # the same secret word still produce different ciphertexts. The position-dependent
+    # i*7 term means brute-forcing all 26 shifts on the whole word doesn't work.
+    shift_base = (vx + vy + phase + decoy_sum) % 26
+    encoded_chars = []
+    for i, ch in enumerate(final_solution_word):
+        shift = (shift_base + i * 7) % 26
+        encoded_chars.append(chr((ord(ch) - ord('a') + shift) % 26 + ord('a')))
+    encoded_word = ''.join(encoded_chars)
+
     img_b64 = img_to_base64(img)
 
     # --- Notebook cells ---
@@ -303,19 +316,22 @@ def generate_notebook_lvl1(final_challenge_code=1, final_solution_flag=False):
 
 One star glows different from the rest. Not white. Not grey. **Teal.**
 
-Find it. Its position holds part of the key. But position alone is not enough - you must also know how much of its face is lit by the sun.
+Find it. Its position holds part of the key. But position alone is not enough - you must also know how much of its face is lit by the sun, and listen for the dimmer ghosts of cyan scattered through the night.
+
+The signal arrives shifted - each letter pushed a different distance along the alphabet. Recover the shifts and the message clears.
 
 ---
 
 **The encoded signal:** `{encoded}`
 
 **Your task:**
-1. Display the image and find the **cyan pixel** - it is the only pixel where `B == 255` and `G == 255` and `R == 0`
-2. Read its `(x, y)` coordinates
-3. Use `ephem` to compute **Venus's phase** (`int(venus.phase)`) on `{date}` UTC from Zurich (lat=`{lat}`, lon=`{lon}`)
-4. Build the key: `key = x * y + int(venus.phase)`
-5. Build the permutation: `random.Random(key).shuffle(list(range(len(encoded))))`
-6. Reverse the transposition to decode: `decoded[i] = encoded[perm[i]]`
+1. Display the image and find the **real cyan pixel** - the only pixel where `B == 255` and `G == 255` and `R == 0` (decoys have `R > 0`).
+2. Read its `(x, y)` coordinates.
+3. Find all **decoy near-cyan pixels** (`B == 255` and `G == 255` and `0 < R < 50`) and sum their red-channel values: `decoy_sum = sum(img[mask, 2])`. This number is unique to your image.
+4. Use `ephem` to compute **Venus's phase** (`int(venus.phase)`) on `{date}` UTC from Zurich (lat=`{lat}`, lon=`{lon}`).
+5. Build the base shift: `shift_base = (x + y + int(venus.phase) + decoy_sum) % 26`.
+6. For each letter `i` of the encoded word (0-indexed), the shift used was `(shift_base + i * 7) % 26`. Reverse it:
+   - `decoded[i] = chr((ord(encoded[i]) - ord('a') - shift) % 26 + ord('a'))`
 """.format(encoded=encoded_word, date=OBS_DATE, lat=OBS_LAT, lon=OBS_LON)
 
     nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
@@ -338,18 +354,23 @@ print("Image shape:", img.shape)
     nb.cells.append(nbf.v4.new_code_cell(image_cell))
 
     # Student solution cell
-    student_code = f"""import ephem, random
+    student_code = f"""import ephem
 
 encoded  = "{encoded_word}"
 obs_date = "{OBS_DATE}"
 obs_lat  = "{OBS_LAT}"
 obs_lon  = "{OBS_LON}"
 
-# TODO Step 1: Find the cyan pixel (B=255, G=255, R=0) in img
-# Hint: use np.where or a loop
+# TODO Step 1: Find the real cyan pixel (B=255, G=255, R=0) in img.
+# Hint: build a mask, then use np.where.
 pixel_x, pixel_y = 0, 0  # replace with actual coordinates
 
-# TODO Step 2: Compute Venus phase with ephem
+# TODO Step 2: Sum the red-channel values of all decoy near-cyan pixels.
+# Decoys have B=255, G=255, and 0 < R < 50.
+# Hint: build a mask, then img[mask, 2].sum()
+decoy_sum = 0  # replace
+
+# TODO Step 3: Compute Venus's phase with ephem.
 obs = ephem.Observer()
 obs.lat  = obs_lat
 obs.lon  = obs_lon
@@ -358,24 +379,22 @@ venus = ephem.Venus()
 venus.compute(obs)
 phase = 0  # replace: int(venus.phase)
 
-# TODO Step 3: Build key and permutation
-key  = pixel_x * pixel_y + phase
-perm = list(range(len(encoded)))
-random.Random(key).shuffle(perm)
+# TODO Step 4: Build the base shift.
+shift_base = 0  # replace: (pixel_x + pixel_y + phase + decoy_sum) % 26
 
-# TODO Step 4: Reverse the transposition
-# Hint: if encoded[perm[i]] = original[i], then decoded[i] = encoded[perm[i]]? Think carefully.
-def transpose_decode(encoded, perm):
-    pass  # implement this
+# TODO Step 5: Reverse the per-letter Caesar shift.
+# For each letter at position i:
+#   shift = (shift_base + i * 7) % 26
+#   plain = chr((ord(encoded[i]) - ord('a') - shift) % 26 + ord('a'))
+answer = ""
+# fill in the loop here
 
-answer = transpose_decode(encoded, perm)
 print(answer)
 """
     nb.cells.append(nbf.v4.new_code_cell(student_code))
 
     # Solution code
-    solution_code = f"""import ephem, random, cv2, numpy as np, base64
-from IPython.display import display, Image as IPImage
+    solution_code = f"""import ephem, cv2, numpy as np, base64
 
 encoded  = "{encoded_word}"
 img_b64  = "{img_b64}"
@@ -387,11 +406,15 @@ img_bytes = base64.b64decode(img_b64)
 img_arr   = np.frombuffer(img_bytes, dtype=np.uint8)
 img       = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
 
-# Find cyan pixel: B=255, G=255, R=0
-mask = (img[:,:,0] == 255) & (img[:,:,1] == 255) & (img[:,:,2] == 0)
-ys, xs = np.where(mask)
-pixel_x = int(np.median(xs))
-pixel_y = int(np.median(ys))
+# Real cyan pixel: B=255, G=255, R=0
+real_mask = (img[:,:,0] == 255) & (img[:,:,1] == 255) & (img[:,:,2] == 0)
+ys, xs    = np.where(real_mask)
+pixel_x   = int(np.median(xs))
+pixel_y   = int(np.median(ys))
+
+# Decoy near-cyan pixels: B=255, G=255, 0 < R < 50
+decoy_mask = (img[:,:,0] == 255) & (img[:,:,1] == 255) & (img[:,:,2] > 0) & (img[:,:,2] < 50)
+decoy_sum  = int(img[decoy_mask, 2].sum())
 
 obs = ephem.Observer()
 obs.lat  = obs_lat
@@ -401,17 +424,13 @@ venus = ephem.Venus()
 venus.compute(obs)
 phase = int(venus.phase)
 
-key  = pixel_x * pixel_y + phase
-perm = list(range(len(encoded)))
-random.Random(key).shuffle(perm)
+shift_base = (pixel_x + pixel_y + phase + decoy_sum) % 26
 
-def transpose_decode(encoded, perm):
-    decoded = [''] * len(encoded)
-    for i in range(len(encoded)):
-        decoded[i] = encoded[perm[i]]
-    return ''.join(decoded)
+answer = ""
+for i, ch in enumerate(encoded):
+    shift  = (shift_base + i * 7) % 26
+    answer += chr((ord(ch) - ord('a') - shift) % 26 + ord('a'))
 
-answer = transpose_decode(encoded, perm)
 print(answer)  # {final_solution_word}
 """
 
@@ -478,10 +497,7 @@ def generate_notebook_lvl2(final_challenge_code=1, final_solution_flag=False):
         blue    = int(body.earth_distance * 1000) % 256
         planet_data[name] = (az_deg, alt_deg, blue)
 
-    # Key: sum of (blue_channel + alt_deg) for each planet - needs cv2 + ephem
-    key  = sum(blue + alt for (_, alt, blue) in planet_data.values())
-    perm = make_perm(len(final_solution_word), key)
-    encoded_word = transpose_encode(final_solution_word, perm)
+    # Encoding happens AFTER image generation so we can mix in a per-image quantity
 
     # --- Image generation - unique per user ---
     W, H = 600, 600
@@ -528,6 +544,29 @@ def generate_notebook_lvl2(final_challenge_code=1, final_solution_flag=False):
                 if 0 <= nx < W and 0 <= ny < H:
                     img[ny, nx] = [blue, 255, 255]  # BGR: B=blue (not 255)
 
+    # Count pure-white decoy clusters in the actual image. Pure white is B=G=R=255;
+    # real planet markers have B != 255 so they are excluded.
+    # Counting clusters (not pixels) gives a small integer (6-13 ish) that's distinct per user
+    # but easy to compute - the student just labels connected components on the pure-white mask.
+    from scipy import ndimage as _nd
+    pure_white_mask = (img[:,:,0] == 255) & (img[:,:,1] == 255) & (img[:,:,2] == 255)
+    _, decoy_count  = _nd.label(pure_white_mask)
+
+    # Astronomy contribution: sum of (blue + altitude) over all 4 planets
+    planet_sum = sum(blue + alt for (_, alt, blue) in planet_data.values())
+
+    # XOR stream cipher with key derived from (planet_sum, decoy_count).
+    # planet_sum requires ALL FOUR planets matched correctly; decoy_count requires
+    # actually counting clusters in this student's nebula. Combined, two students with
+    # the same secret word still produce different ciphertexts.
+    base_key = (planet_sum + decoy_count) & 0xFF
+    encoded_chars = []
+    for i, ch in enumerate(final_solution_word):
+        key_byte    = (base_key + i * 23) & 0xFF
+        cipher_byte = ord(ch) ^ key_byte
+        encoded_chars.append(f"{cipher_byte:02x}")
+    encoded_word = ''.join(encoded_chars)
+
     img_b64 = img_to_base64(img)
 
     # --- Notebook cells ---
@@ -535,26 +574,30 @@ def generate_notebook_lvl2(final_challenge_code=1, final_solution_flag=False):
 
 Your instruments detect four near-white pixels scattered across the nebula. They look like noise - but they are not. Each one was placed by a planet at the exact moment of observation. Their blue channel encodes the distance. Their position in the sky encodes the altitude.
 
-Combine both to find the key.
+But the nebula also hides pure-white interference - decoy clusters left by cosmic radiation. Their count is a fingerprint of your particular slice of space.
+
+The signal is XOR-scrambled into raw bytes. Combine the planets and the noise to recover the mask.
 
 ---
 
-**The encoded signal:** `{encoded}`
+**The encoded signal (hex):** `{encoded}`
 
 **Your task:**
-1. Display the nebula and find the **four planet marker pixels** using `cv2`
-   - Filter: `G == 255` and `R == 255` and `B != 255` (pure white decoys have B=255, real markers don't)
-   - Each planet leaves a 3x3 marker - take the center of each cluster
-2. For each center pixel, read its **blue channel**: `img[y, x, 0]` (OpenCV uses BGR)
-3. Use `ephem` to compute each planet's **altitude in degrees** on `{date}` UTC from Zurich
-   Planets in order: `{planets}`
-4. Match each cluster to its planet using the position formula:
+1. Display the nebula. Find the **four real planet markers** - 3x3 patches where `G == 255` and `R == 255` and `B != 255` (pure-white decoys have B=255 too).
+2. Find the **pure-white decoy clusters** - 3x3 patches where `B == G == R == 255`. Count how many distinct clusters there are (use `scipy.ndimage.label` or implement your own flood fill). Call this `decoy_count`.
+3. For each real planet marker centre, read its **blue channel**: `img[y, x, 0]` (OpenCV uses BGR).
+4. Use `ephem` to compute each planet's **altitude in degrees** on `{date}` UTC from Zurich. Planets in order: `{planets}`.
+5. Match each cluster to its planet using the position formula:
    ```
    x = int((az_deg % 360) / 360 * 600)
    y = int((90 - alt_deg) / 180 * 600)
    ```
-5. Build the key: `key = sum(blue_channel[i] + int(alt_deg[i]) for each planet)`
-6. Build the permutation and reverse the transposition
+6. Build `planet_sum = sum(blue_channel + altitude_deg for each planet)`.
+7. Build the base key: `base_key = (planet_sum + decoy_count) & 0xFF`.
+8. Walk the hex string two characters at a time. For byte `i`:
+   - `key_byte = (base_key + i * 23) & 0xFF`
+   - `plain_byte = int(hex_byte, 16) ^ key_byte`
+   - Append `chr(plain_byte)` to your answer.
 """.format(encoded=encoded_word, date=OBS_DATE, planets=planet_names)
 
     nb.cells.append(nbf.v4.new_markdown_cell(intro_text))
@@ -576,21 +619,23 @@ print("Image shape:", img.shape)
     nb.cells.append(nbf.v4.new_code_cell(image_cell))
 
     # Student solution cell
-    student_code = f"""import ephem, random, math, numpy as np
+    student_code = f"""import ephem, math, numpy as np
 
-encoded      = "{encoded_word}"
+encoded      = "{encoded_word}"  # hex string, 2 chars per byte
 obs_date     = "{OBS_DATE}"
 obs_lat      = "{OBS_LAT}"
 obs_lon      = "{OBS_LON}"
 planet_names = {planet_names}
 W, H         = 600, 600
 
-# TODO Step 1: Find all near-white pixels (G==255 and R==255) in img
-# Group into 4 clusters and take the center of each
-# Hint: np.where((img[:,:,1]==255) & (img[:,:,2]==255))
+# TODO Step 1: Find pure-white decoy clusters (B==255, G==255, R==255).
+# Count how many distinct clusters there are - this is decoy_count.
+# Hint: from scipy import ndimage; _, decoy_count = ndimage.label(mask)
+decoy_count = 0  # replace
 
-# TODO Step 2: For each cluster center (px, py) read blue channel
-# blue = img[py, px, 0]
+# TODO Step 2: Find the four real planet markers (G==255, R==255, B!=255).
+# Group into 4 clusters and take the center of each.
+# Read each centre's blue channel: blue = img[cy, cx, 0]
 
 # TODO Step 3: Compute each planet's az and alt with ephem
 obs = ephem.Observer()
@@ -606,27 +651,31 @@ body_map = {{
 }}
 
 # Match each planet to its cluster using:
-# x = int((az_deg % 360) / 360 * W)
-# y = int((90 - alt_deg) / 180 * H)
+#   x = int((az_deg % 360) / 360 * W)
+#   y = int((90 - alt_deg) / 180 * H)
 
-# TODO Step 4: Build the key
-# key = sum(blue_channel[i] + int(alt_deg[i]) for each planet in planet_names order)
-key = 0  # replace
+# TODO Step 4: Build planet_sum
+# planet_sum = sum(blue_channel[i] + int(alt_deg[i]) for each planet in planet_names order)
+planet_sum = 0  # replace
 
-# TODO Step 5: Decode
-perm = list(range(len(encoded)))
-random.Random(key).shuffle(perm)
+# TODO Step 5: Build the base key (kept in one byte)
+base_key = (planet_sum + decoy_count) & 0xFF
 
-def transpose_decode(encoded, perm):
-    pass  # decoded[i] = encoded[perm[i]]
+# TODO Step 6: XOR-decode the hex string
+# For each byte at position i:
+#   cipher_byte = int(encoded[i:i+2], 16)
+#   key_byte    = (base_key + (i // 2) * 23) & 0xFF
+#   append chr(cipher_byte ^ key_byte) to answer
+answer = ""
+# fill in the loop here
 
-answer = transpose_decode(encoded, perm)
 print(answer)
 """
     nb.cells.append(nbf.v4.new_code_cell(student_code))
 
     # Solution code
-    solution_code = f"""import ephem, random, math, cv2, numpy as np, base64
+    solution_code = f"""import ephem, math, cv2, numpy as np, base64
+from scipy import ndimage
 
 encoded      = "{encoded_word}"
 img_b64      = "{img_b64}"
@@ -640,10 +689,13 @@ img_bytes = base64.b64decode(img_b64)
 img_arr   = np.frombuffer(img_bytes, dtype=np.uint8)
 img       = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
 
-# Find near-white clusters: G==255 and R==255
-from scipy import ndimage
-mask = (img[:,:,1] == 255) & (img[:,:,2] == 255)
-labeled, n_clusters = ndimage.label(mask)
+# Pure-white decoy clusters
+pure_white = (img[:,:,0] == 255) & (img[:,:,1] == 255) & (img[:,:,2] == 255)
+_, decoy_count = ndimage.label(pure_white)
+
+# Real planet markers: G==255, R==255, B!=255
+real_mask = (img[:,:,1] == 255) & (img[:,:,2] == 255) & (img[:,:,0] != 255)
+labeled, n_clusters = ndimage.label(real_mask)
 
 clusters = []
 for i in range(1, n_clusters + 1):
@@ -664,7 +716,7 @@ body_map = {{
     'Mercury': ephem.Mercury,
 }}
 
-key = 0
+planet_sum = 0
 for name in planet_names:
     body = body_map[name]()
     body.compute(obs)
@@ -673,18 +725,16 @@ for name in planet_names:
     ex = int((az_deg % 360) / 360 * W) % W
     ey = int((90 - alt_deg) / 180 * H) % H
     closest = min(clusters, key=lambda c: abs(c[0]-ex) + abs(c[1]-ey))
-    key += closest[2] + alt_deg
+    planet_sum += closest[2] + alt_deg
 
-perm = list(range(len(encoded)))
-random.Random(key).shuffle(perm)
+base_key = (planet_sum + decoy_count) & 0xFF
 
-def transpose_decode(encoded, perm):
-    decoded = [''] * len(encoded)
-    for i in range(len(encoded)):
-        decoded[i] = encoded[perm[i]]
-    return ''.join(decoded)
+answer = ""
+for i in range(0, len(encoded), 2):
+    cipher_byte = int(encoded[i:i+2], 16)
+    key_byte    = (base_key + (i // 2) * 23) & 0xFF
+    answer     += chr(cipher_byte ^ key_byte)
 
-answer = transpose_decode(encoded, perm)
 print(answer)  # {final_solution_word}
 """
 
@@ -714,12 +764,11 @@ def generate_notebook_lvl3(final_challenge_code=1, final_solution_flag=False):
     Level 3: The Star Chart
     - 800x800 chart with 15 real bright stars at actual sky positions (labelled)
     - Stars sorted by altitude descending; top N (N=len(word)) carry the message
-    - Permutation = argsort of all 15 stars by altitude (top N positions = perm)
-    - Each transposed letter is ALSO Caesar-shifted by its star's red channel % 26
-    - Red channel is embedded in the image pixel for each top-N star
-    - Students: compute 15 star positions with ephem, sort by altitude, read red channels
-                with cv2, reverse Caesar shifts, reverse transposition
-    - Cannot brute force: 15! orderings, plus per-letter shifts from pixel values
+    - Each top-N star has a red-channel value embedded in the image (28-227)
+    - Per-byte XOR keystream: key_byte[i] = (red_channel_i + altitude_i) & 0xFF
+      where i indexes the i-th star in altitude rank
+    - Output is hex (2 chars per plaintext byte) - unguessable
+    - Cannot brute force: 15! orderings, AND each byte's key combines pixel + astronomy
     """
 
     nb = nbf.v4.new_notebook()
@@ -730,7 +779,7 @@ def generate_notebook_lvl3(final_challenge_code=1, final_solution_flag=False):
     nb.cells.append(nbf.v4.new_markdown_cell(
         "### 🛰️ Need help? Open the mission briefing:\n"
         "[**OPEN LVL 3 HINT PAGE**](https://alexrtw05.github.io/CASH-project/lvl3.html)\n\n"
-        "_Open in your browser for the star altitude sorter, Caesar decoder, and full pipeline guide._"
+        "_Open in your browser for the star altitude sorter, XOR decoder, and full pipeline guide._"
     ))
 
     # --- Astronomy computation ---
@@ -756,20 +805,25 @@ def generate_notebook_lvl3(final_challenge_code=1, final_solution_flag=False):
     sorted_stars = sorted(star_data, key=lambda s: s[2], reverse=True)
     top_stars    = sorted_stars[:n]
 
-    # Permutation = identity (the altitude rank IS the arrangement)
-    # Per-letter Caesar shift = red channel % 26 (deterministic from star name + code)
-    red_channels = []
-    for name, _, _ in top_stars:
-        rc = (abs(hash(name + str(final_challenge_code))) % 200) + 28
-        red_channels.append(rc % 26)
+    # Per-star red channel value, deterministic across sessions (uses hashlib, NOT hash()).
+    # Range 28-227 by construction; decoys use R in 1-27 so students filter R >= 28.
+    import hashlib as _hashlib
+    def _star_red(name, code):
+        h = _hashlib.md5(f"{name}|{code}".encode()).digest()
+        return (h[0] | (h[1] << 8)) % 200 + 28  # always 28-227
 
-    # Encode: first transpose (identity perm), then per-letter Caesar shift
-    perm = list(range(n))
-    transposed = transpose_encode(final_solution_word, perm)  # identity = no change
-    encoded_word = ''
-    for i, c in enumerate(transposed):
-        shift = red_channels[i]
-        encoded_word += chr((ord(c) - ord('a') + shift) % 26 + ord('a'))
+    red_channels = [_star_red(name, final_challenge_code) for name, _, _ in top_stars]
+
+    # XOR-hex encoding. Each plaintext byte is XOR'd with a key byte derived from
+    # the i-th ranked star's (red_channel + altitude). This couples image and astronomy
+    # PER BYTE - any single ranking error or missed pixel corrupts that byte.
+    encoded_chars = []
+    for i, ch in enumerate(final_solution_word):
+        _, _, alt_i = top_stars[i]
+        key_byte    = (red_channels[i] + alt_i) & 0xFF
+        cipher_byte = ord(ch) ^ key_byte
+        encoded_chars.append(f"{cipher_byte:02x}")
+    encoded_word = ''.join(encoded_chars)
 
     # --- Image generation - unique per user ---
     W, H = 800, 800
@@ -808,9 +862,10 @@ def generate_notebook_lvl3(final_challenge_code=1, final_solution_flag=False):
         fake_r = int(rng.randint(1, 27))
         cv2.circle(img, (dpx, dpy), 4, (0, 0, fake_r), -1)
 
-    # Real message stars: R in 28-227 (students filter R >= 28)
+    # Real message stars: R in 28-227 (students filter R >= 28).
+    # Use the SAME hashlib-derived value as the encoding step (deterministic across sessions).
     for i, (name, az_deg, alt_deg) in enumerate(top_stars):
-        rc = (abs(hash(name + str(final_challenge_code))) % 200) + 28  # always 28-227
+        rc = _star_red(name, final_challenge_code)
         px, py = az_alt_to_xy(az_deg, alt_deg, W, H)
         cv2.circle(img, (px, py), 4, (0, 0, rc), -1)
 
@@ -827,24 +882,26 @@ def generate_notebook_lvl3(final_challenge_code=1, final_solution_flag=False):
 
 Mission control's final message was not sent in words. It was written in the stars themselves.
 
-They ranked every visible star by how high it stood in the sky. The brightest in altitude came first. They marked {n} of them red - one per letter. The redness tells you the shift. The rank tells you the order.
+They ranked every visible star by how high it stood in the sky. The brightest in altitude came first. They marked {n} of them red - one per letter. The redness sets the mask. The altitude sets the mask. The order is fixed by the rank.
 
-Find the red stars. Measure their glow. Undo the shifts. The word will appear.
+The signal arrives as raw hex. Find the red stars. Measure their glow. Combine with their height. XOR away the mask. The word will appear.
 
 ---
 
-**The encoded signal:** `{encoded}`
+**The encoded signal (hex):** `{encoded}`
 
 **Your task:**
-1. Display the star chart. The **red pixels** carry the message - filter by `B == 0` and `G == 0` and `R >= 28`. Decoy red pixels have `R < 28`.
+1. Display the star chart. The **real message stars** are red pixels with `B == 0` and `G == 0` and `R >= 28`. Decoy red pixels have `R < 28`.
 2. Use `ephem` to compute the **altitude** of all 15 stars on `{date}` UTC from Zurich:
    ```python
    stars = {stars}
    ```
-3. Sort all 15 stars by altitude **descending**. Take the top **{n}** - these are the message stars, in order.
-4. For each of the top {n} stars (in altitude-rank order), find its pixel in the chart and read the **red channel**: `img[y, x, 2]`
-5. **Reverse the Caesar shift** for each letter `i`: `decoded[i] = (encoded[i] - red_channel[i] % 26) % 26`
-6. The transposition is the identity permutation - so after reversing shifts the word is already in order.
+3. Sort all 15 stars by altitude **descending**. Take the top **{n}** - these are the message stars, in altitude-rank order.
+4. For each of the top {n} stars, find its pixel in the chart using the position formula and read the **red channel**: `img[y, x, 2]`.
+5. The encoded message is hex - 2 chars per byte, {n} bytes total. For byte at position `i` (0-indexed):
+   - `key_byte    = (red_channel_i + altitude_deg_i) & 0xFF`
+   - `cipher_byte = int(encoded[2i:2i+2], 16)`
+   - Append `chr(cipher_byte ^ key_byte)` to the answer.
 
 **Position formula:**
 ```python
@@ -874,7 +931,7 @@ print("Image shape:", img.shape)
     # Student solution cell
     student_code = f"""import ephem, math, numpy as np
 
-encoded    = "{encoded_word}"
+encoded    = "{encoded_word}"  # hex string, 2 chars per byte
 obs_date   = "{OBS_DATE}"
 obs_lat    = "{OBS_LAT}"
 obs_lon    = "{OBS_LON}"
@@ -882,7 +939,7 @@ n          = {n}
 W, H       = 800, 800
 star_names = {STAR_NAMES}
 
-# TODO Step 1: Compute az and alt for each star
+# TODO Step 1: Compute az and alt for each of the 15 stars
 obs = ephem.Observer()
 obs.lat  = obs_lat
 obs.lon  = obs_lon
@@ -896,21 +953,22 @@ for name in star_names:
     alt_deg = int(math.degrees(float(star.alt)))
     star_data.append((name, az_deg, alt_deg))
 
-# TODO Step 2: Sort by altitude descending, take top n
+# TODO Step 2: Sort by altitude descending, take the top n
 sorted_stars = sorted(star_data, key=lambda s: s[2], reverse=True)
 top_stars    = sorted_stars[:n]
 
-# TODO Step 3: For each top star compute pixel position and read red channel from img
+# TODO Step 3: For each top star compute pixel position and read the red channel from img.
 # x = int((az_deg % 360) / 360 * W) % W
 # y = int((90 - alt_deg) / 180 * H) % H
 # red = img[y, x, 2]
-red_channels = []  # fill this in - should have n values
+red_channels = [0] * n  # replace each entry with the actual red value
 
-# TODO Step 4: Reverse the Caesar shifts
+# TODO Step 4: XOR-decode. For byte at position i:
+#   key_byte    = (red_channels[i] + altitude_of_star_i) & 0xFF
+#   cipher_byte = int(encoded[2*i:2*i+2], 16)
+#   answer     += chr(cipher_byte ^ key_byte)
 answer = ""
-for i, c in enumerate(encoded):
-    shift = red_channels[i] % 26
-    answer += chr((ord(c) - ord('a') - shift) % 26 + ord('a'))
+# fill in the loop here
 
 print(answer)
 """
@@ -955,9 +1013,11 @@ for name, az_deg, alt_deg in top_stars:
     red_channels.append(int(img[py, px, 2]))
 
 answer = ""
-for i, c in enumerate(encoded):
-    shift = red_channels[i] % 26
-    answer += chr((ord(c) - ord('a') - shift) % 26 + ord('a'))
+for i in range(n):
+    _, _, alt_i = top_stars[i]
+    key_byte    = (red_channels[i] + alt_i) & 0xFF
+    cipher_byte = int(encoded[2*i:2*i+2], 16)
+    answer     += chr(cipher_byte ^ key_byte)
 
 print(answer)  # {final_solution_word}
 """
